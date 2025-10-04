@@ -3,7 +3,6 @@ import uuid
 from django.db import models
 
 from apps.users.models import User
-from apps.on_chain.models import Token
 
 
 class Charity(models.Model):
@@ -15,12 +14,22 @@ class Charity(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    contract_address = models.CharField(
+        max_length=255, unique=True, null=True, blank=True
+    )
+    deployment_hash = models.CharField(
+        max_length=255, unique=True, null=True, blank=True
+    )
+
     def __str__(self):
         return self.name
+
+    # TODO: in chairty contract maintain arr of campaigns_addresses
 
 
 class Campaign(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contract_address = models.CharField(max_length=255, unique=True)
     charity = models.ForeignKey(
         Charity, related_name="campaigns", on_delete=models.CASCADE
     )
@@ -32,6 +41,10 @@ class Campaign(models.Model):
     end_date = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    deployment_hash = models.CharField(
+        max_length=255, unique=True, null=True, blank=True
+    )
 
     def __str__(self):
         return self.title
@@ -53,7 +66,11 @@ class Donation(models.Model):
         max_digits=10, decimal_places=2, null=True, blank=True, default=0.00
     )
     token = models.ForeignKey(
-        Token, related_name="donations", on_delete=models.CASCADE, null=True, blank=True
+        "on_chain.Token",
+        related_name="donations",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
     )
     token_quantity = models.DecimalField(
         max_digits=20, decimal_places=8, null=True, blank=True, default=0.00

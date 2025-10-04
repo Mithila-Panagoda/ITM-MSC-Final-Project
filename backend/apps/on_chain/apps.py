@@ -2,5 +2,5 @@ from django.apps import AppConfig
 
 
 class OnChainConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'on_chain'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.on_chain"
