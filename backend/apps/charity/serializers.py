@@ -219,6 +219,8 @@ class DonationCreateSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        """Create donation with current user"""
+        """Create donation with current user and set status to completed"""
         validated_data["user"] = self.context["request"].user
+        # Set status to COMPLETED since we're not doing actual payment processing
+        validated_data["status"] = DonationStatus.COMPLETED
         return super().create(validated_data)

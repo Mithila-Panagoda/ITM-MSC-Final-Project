@@ -9,6 +9,7 @@ class Roles(models.TextChoices):
     ADMIN = 'ADMIN', _('ADMIN')
     USER = 'USER', _('USER')
     CUSTOMER = 'CUSTOMER', _('CUSTOMER')
+    CHARITY_MANAGER = 'CHARITY_MANAGER', _('CHARITY_MANAGER')
 
 class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
