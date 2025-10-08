@@ -22,6 +22,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { UserRole } from '../../types';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
@@ -43,28 +44,37 @@ const Header: React.FC = () => {
     handleClose();
   };
 
-  const getRoleColor = (role: string) => {
+  const getRoleColor = (role: UserRole) => {
     switch (role) {
-      case 'SUPER_ADMIN':
+      case UserRole.SUPER_ADMIN:
         return 'error';
-      case 'ADMIN':
+      case UserRole.ADMIN:
         return 'warning';
-      case 'USER':
+      case UserRole.CHARITY_MANAGER:
+        return 'secondary';
+      case UserRole.USER:
         return 'primary';
-      case 'CUSTOMER':
+      case UserRole.CUSTOMER:
         return 'success';
       default:
         return 'default';
     }
   };
 
-  const navigationItems = [
-    { label: 'Dashboard', path: '/', icon: <Dashboard /> },
-    { label: 'Campaigns', path: '/campaigns', icon: <Campaign /> },
-    { label: 'Charities', path: '/charities', icon: <Business /> },
-    { label: 'Tokens', path: '/tokens', icon: <Token /> },
-    { label: 'Transactions', path: '/transactions', icon: <Receipt /> },
-  ];
+  // Define navigation items based on user role
+  const getAllNavigationItems = () => {
+    const items = [
+      { label: 'Dashboard', path: '/', icon: <Dashboard />, roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.USER, UserRole.CUSTOMER] },
+      { label: 'Campaigns', path: '/campaigns', icon: <Campaign />, roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.USER, UserRole.CUSTOMER, UserRole.CHARITY_MANAGER] },
+      { label: 'Charities', path: '/charities', icon: <Business />, roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.USER, UserRole.CUSTOMER, UserRole.CHARITY_MANAGER] },
+      { label: 'Tokens', path: '/tokens', icon: <Token />, roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.USER, UserRole.CUSTOMER] },
+      { label: 'Transactions', path: '/transactions', icon: <Receipt />, roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.USER, UserRole.CUSTOMER] },
+    ];
+
+    return items.filter(item => !user?.role || item.roles.includes(user.role));
+  };
+
+  const navigationItems = getAllNavigationItems();
 
   if (!isAuthenticated) {
     return null;
@@ -99,8 +109,8 @@ const Header: React.FC = () => {
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Chip
-              label={user?.role || 'USER'}
-              color={getRoleColor(user?.role || 'USER')}
+              label={user?.role || UserRole.USER}
+              color={getRoleColor(user?.role || UserRole.USER)}
               size="small"
               variant="outlined"
             />

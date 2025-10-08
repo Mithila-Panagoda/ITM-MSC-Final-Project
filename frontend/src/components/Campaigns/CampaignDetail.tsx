@@ -46,6 +46,8 @@ const CampaignDetail: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [donateDialogOpen, setDonateDialogOpen] = useState(false);
+  const [donationSuccess, setDonationSuccess] = useState(false);
+  const [donationError, setDonationError] = useState<string | null>(null);
 
   const {
     data: campaign,
@@ -78,10 +80,31 @@ const CampaignDetail: React.FC = () => {
     mutationFn: (donationData: DonationCreate) =>
       apiService.donateToCampaign(id!, donationData),
     onSuccess: () => {
+      // Invalidate campaign-specific queries
       queryClient.invalidateQueries({ queryKey: ['campaign', id] });
       queryClient.invalidateQueries({ queryKey: ['campaign-stats', id] });
       queryClient.invalidateQueries({ queryKey: ['campaign-donations', id] });
-      setDonateDialogOpen(false);
+      
+      // Invalidate dashboard and list queries
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['charities'] });
+      queryClient.invalidateQueries({ queryKey: ['donation-stats'] });
+      
+      setDonationSuccess(true);
+      setDonationError(null);
+      reset({ amount: 0, token: '', token_quantity: 0 });
+      setTimeout(() => {
+        setDonateDialogOpen(false);
+        setDonationSuccess(false);
+      }, 2000);
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          Object.values(error.response?.data || {}).flat().join(', ') ||
+                          'Failed to process donation. Please try again.';
+      setDonationError(errorMessage);
+      setDonationSuccess(false);
     },
   });
 
@@ -102,15 +125,29 @@ const CampaignDetail: React.FC = () => {
   const donationType = watch('token');
 
   const onSubmit = (data: any) => {
+    setDonationError(null);
+    setDonationSuccess(false);
+
+    // Validate inputs
+    if (!donationType && (!data.amount || data.amount <= 0)) {
+      setDonationError('Please enter a valid donation amount');
+      return;
+    }
+
+    if (donationType && (!data.token_quantity || data.token_quantity <= 0)) {
+      setDonationError('Please enter a valid token quantity');
+      return;
+    }
+
     const donationData: DonationCreate = {
       campaign: id!,
-      amount: data.amount,
     };
 
     if (donationType && data.token_quantity) {
       donationData.token = data.token;
-      donationData.token_quantity = data.token_quantity;
-      delete donationData.amount;
+      donationData.token_quantity = Number(data.token_quantity);
+    } else {
+      donationData.amount = Number(data.amount);
     }
 
     donateMutation.mutate(donationData);
@@ -412,9 +449,15 @@ const CampaignDetail: React.FC = () => {
         <DialogTitle>Make a Donation</DialogTitle>
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogContent>
-            {donateMutation.error && (
+            {donationSuccess && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Donation successful! Thank you for your contribution.
+              </Alert>
+            )}
+            
+            {donationError && (
               <Alert severity="error" sx={{ mb: 2 }}>
-                Failed to process donation. Please try again.
+                {donationError}
               </Alert>
             )}
 
@@ -449,6 +492,10 @@ const CampaignDetail: React.FC = () => {
               <Controller
                 name="amount"
                 control={control}
+                rules={{
+                  required: 'Donation amount is required',
+                  min: { value: 1, message: 'Amount must be at least $1' }
+                }}
                 render={({ field }) => (
                   <TextField
                     {...field}
@@ -457,9 +504,11 @@ const CampaignDetail: React.FC = () => {
                     type="number"
                     error={!!errors.amount}
                     helperText={errors.amount?.message}
+                    placeholder="Enter amount (e.g., 50)"
                     InputProps={{
-                      startAdornment: <AttachMoney />,
+                      startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
                     }}
+                    inputProps={{ min: 1, step: 1 }}
                   />
                 )}
               />
@@ -467,6 +516,10 @@ const CampaignDetail: React.FC = () => {
               <Controller
                 name="token_quantity"
                 control={control}
+                rules={{
+                  required: 'Token quantity is required',
+                  min: { value: 1, message: 'Quantity must be at least 1' }
+                }}
                 render={({ field }) => (
                   <TextField
                     {...field}
@@ -475,6 +528,8 @@ const CampaignDetail: React.FC = () => {
                     type="number"
                     error={!!errors.token_quantity}
                     helperText={errors.token_quantity?.message}
+                    placeholder="Enter token quantity (e.g., 10)"
+                    inputProps={{ min: 1, step: 1 }}
                   />
                 )}
               />

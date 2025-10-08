@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, LoginRequest } from '../types';
+import { User, LoginRequest, UserRole } from '../types';
 import apiService from '../services/api';
 
 interface AuthContextType {
@@ -8,6 +8,8 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   isAuthenticated: boolean;
+  hasRole: (roles: UserRole | UserRole[]) => boolean;
+  isCharityManager: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,12 +57,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   };
 
+  const hasRole = (roles: UserRole | UserRole[]): boolean => {
+    if (!user) return false;
+    const roleArray = Array.isArray(roles) ? roles : [roles];
+    return roleArray.includes(user.role);
+  };
+
+  const isCharityManager = user?.role === UserRole.CHARITY_MANAGER;
+
   const value: AuthContextType = {
     user,
     login,
     logout,
     loading,
     isAuthenticated,
+    hasRole,
+    isCharityManager,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

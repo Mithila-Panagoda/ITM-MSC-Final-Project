@@ -118,8 +118,8 @@ class ApiService {
   }
 
   async getCurrentUser(): Promise<User> {
-    const response: AxiosResponse<User[]> = await this.api.get('/users/');
-    return response.data[0]; // Assuming we get current user as first item
+    const response: AxiosResponse<User> = await this.api.get('/users/me/');
+    return response.data;
   }
 
   // Charity endpoints
@@ -288,10 +288,20 @@ class ApiService {
     charity?: string;
     page?: number;
   }): Promise<PaginatedResponse<Token>> {
-    const response: AxiosResponse<PaginatedResponse<Token>> = await this.api.get(
-      '/tokens/',
-      { params }
-    );
+    const response = await this.api.get('/tokens/', { params });
+    
+    // Handle both paginated and non-paginated responses
+    if (Array.isArray(response.data)) {
+      // Backend returns plain array, wrap it in paginated format
+      return {
+        results: response.data,
+        count: response.data.length,
+        next: undefined,
+        previous: undefined,
+      };
+    }
+    
+    // Backend returns paginated response
     return response.data;
   }
 

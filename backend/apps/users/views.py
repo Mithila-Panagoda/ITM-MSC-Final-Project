@@ -4,6 +4,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from .serializers import LoginSerializer, UserSerializer
@@ -24,6 +25,8 @@ class UserViewSet(ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action == "login":
             permission_classes = [AnonWriteOnly]
+        elif self.action == "me":
+            permission_classes = [IsAuthenticated]
         else:
             permission_classes = self.permission_classes
         return [permission() for permission in permission_classes]
@@ -55,3 +58,11 @@ class UserViewSet(ReadOnlyModelViewSet):
                 {"message": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["get"], url_path="me")
+    def me(self, request):
+        """
+        Get the current authenticated user's information.
+        """
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
