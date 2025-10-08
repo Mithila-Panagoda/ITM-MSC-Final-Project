@@ -30,11 +30,14 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { UserRole } from '../../types';
 import apiService from '../../services/api';
 import { CampaignList as CampaignListType } from '../../types';
 
 const CampaignsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { hasRole } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [progressFilter, setProgressFilter] = useState('');
@@ -97,13 +100,15 @@ const CampaignsPage: React.FC = () => {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Campaigns</Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/campaigns/new')}
-        >
-          Create Campaign
-        </Button>
+        {hasRole([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CHARITY_MANAGER]) && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => navigate('/campaigns/new')}
+          >
+            Create Campaign
+          </Button>
+        )}
       </Box>
 
       {/* Filters */}
@@ -287,10 +292,10 @@ const CampaignsPage: React.FC = () => {
                         startIcon={<AttachMoney />}
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/campaigns/${campaign.id}/donate`);
+                          navigate(`/campaigns/${campaign.id}`);
                         }}
                       >
-                        Donate Now
+                        View & Donate
                       </Button>
                     </CardContent>
                   </Card>

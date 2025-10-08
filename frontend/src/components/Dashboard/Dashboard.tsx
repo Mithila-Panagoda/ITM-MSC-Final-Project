@@ -262,7 +262,7 @@ const Dashboard: React.FC = () => {
                     sx={{ mt: 2 }}
                     onClick={() => navigate('/campaigns')}
                   >
-                    Make a Donation
+                    Browse Campaigns
                   </Button>
                 </Box>
               )}

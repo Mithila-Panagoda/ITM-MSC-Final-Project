@@ -1,11 +1,19 @@
 // User Types
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+  CUSTOMER = 'CUSTOMER',
+  CHARITY_MANAGER = 'CHARITY_MANAGER',
+}
+
 export interface User {
   id: string;
   email: string;
   first_name: string;
   last_name: string;
   name: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'USER' | 'CUSTOMER';
+  role: UserRole;
   is_active: boolean;
   created_at: string;
   updated_at: string;

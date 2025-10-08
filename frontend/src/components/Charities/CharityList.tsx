@@ -25,10 +25,13 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { UserRole } from '../../types';
 import apiService from '../../services/api';
 
 const CharitiesPage: React.FC = () => {
   const navigate = useNavigate();
+  const { hasRole } = useAuth();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -60,13 +63,15 @@ const CharitiesPage: React.FC = () => {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Charities</Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/charities/new')}
-        >
-          Add Charity
-        </Button>
+        {hasRole([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.CHARITY_MANAGER]) && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => navigate('/charities/new')}
+          >
+            Add Charity
+          </Button>
+        )}
       </Box>
 
       {/* Search */}
