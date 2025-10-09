@@ -27,6 +27,13 @@ class Charity(models.Model):
     # TODO: in chairty contract maintain arr of campaigns_addresses
 
 
+class CampaignStatus(models.TextChoices):
+    UPCOMING = "UPCOMING", "Upcoming"
+    ACTIVE = "ACTIVE", "Active"
+    COMPLETED = "COMPLETED", "Completed"
+    ENDED = "ENDED", "Ended"
+
+
 class Campaign(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract_address = models.CharField(max_length=255, unique=True)
@@ -39,6 +46,9 @@ class Campaign(models.Model):
     raised_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
+    status = models.CharField(
+        max_length=10, choices=CampaignStatus.choices, default=CampaignStatus.UPCOMING
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -48,6 +58,45 @@ class Campaign(models.Model):
 
     def __str__(self):
         return self.title
+
+    def is_active(self):
+        """Check if campaign is currently active (not completed or ended)"""
+        return self.status in [CampaignStatus.UPCOMING, CampaignStatus.ACTIVE]
+
+    def can_accept_donations(self):
+        """Check if campaign can accept new donations"""
+        from django.utils import timezone
+        now = timezone.now()
+        return (
+            self.status == CampaignStatus.ACTIVE and
+            self.start_date <= now <= self.end_date and
+            self.raised_amount < self.goal_amount
+        )
+
+    def update_status(self):
+        """Update campaign status based on current time and goal achievement"""
+        from django.utils import timezone
+        now = timezone.now()
+        
+        if self.raised_amount >= self.goal_amount:
+            self.status = CampaignStatus.COMPLETED
+        elif now < self.start_date:
+            self.status = CampaignStatus.UPCOMING
+        elif self.start_date <= now <= self.end_date:
+            self.status = CampaignStatus.ACTIVE
+        else:
+            self.status = CampaignStatus.ENDED
+        
+        self.save(update_fields=['status'])
+        return self.status
+
+    def get_remaining_amount(self):
+        """Get the remaining amount needed to reach the goal"""
+        return max(0, self.goal_amount - self.raised_amount)
+
+    def can_accept_donation_amount(self, amount):
+        """Check if a donation amount can be accepted without exceeding the goal"""
+        return amount <= self.get_remaining_amount()
 
 
 class DonationStatus(models.TextChoices):

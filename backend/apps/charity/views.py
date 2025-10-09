@@ -118,16 +118,14 @@ class CampaignViewSet(viewsets.ModelViewSet):
         # Filter by status
         status = self.request.query_params.get("status", None)
         if status:
-            from django.utils import timezone
-
-            now = timezone.now()
-
             if status == "active":
-                queryset = queryset.filter(start_date__lte=now, end_date__gte=now)
+                queryset = queryset.filter(status="ACTIVE")
             elif status == "upcoming":
-                queryset = queryset.filter(start_date__gt=now)
+                queryset = queryset.filter(status="UPCOMING")
             elif status == "ended":
-                queryset = queryset.filter(end_date__lt=now)
+                queryset = queryset.filter(status="ENDED")
+            elif status == "completed":
+                queryset = queryset.filter(status="COMPLETED")
 
         # Filter by fundraising progress
         progress = self.request.query_params.get("progress", None)
@@ -153,6 +151,10 @@ class CampaignViewSet(viewsets.ModelViewSet):
     def donate(self, request, pk=None):
         """Make a donation to a specific campaign"""
         campaign = self.get_object()
+        
+        # Ensure campaign status is up to date before checking if donations are allowed
+        campaign.update_status()
+        
         serializer = DonationCreateSerializer(
             data=request.data, context={"request": request}
         )
@@ -173,6 +175,9 @@ class CampaignViewSet(viewsets.ModelViewSet):
     def statistics(self, request, pk=None):
         """Get statistics for a specific campaign"""
         campaign = self.get_object()
+        
+        # Ensure campaign status is up to date
+        campaign.update_status()
 
         completed_donations = campaign.donations.filter(status=DonationStatus.COMPLETED)
         total_donations = completed_donations.count()
@@ -184,15 +189,11 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 (float(campaign.raised_amount) / float(campaign.goal_amount)) * 100, 2
             )
 
+        # Use the campaign's status field instead of calculating
+        campaign_status = campaign.status.lower()
+
         from django.utils import timezone
-
         now = timezone.now()
-
-        campaign_status = "upcoming"
-        if campaign.start_date <= now <= campaign.end_date:
-            campaign_status = "active"
-        elif campaign.end_date < now:
-            campaign_status = "ended"
 
         stats = {
             "total_donations": total_donations,

@@ -28,6 +28,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { CampaignStatus } from '../../types';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -85,27 +86,34 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: CampaignStatus) => {
     switch (status) {
-      case 'active':
+      case CampaignStatus.ACTIVE:
         return 'success';
-      case 'upcoming':
+      case CampaignStatus.UPCOMING:
         return 'info';
-      case 'ended':
+      case CampaignStatus.COMPLETED:
+        return 'success';
+      case CampaignStatus.ENDED:
         return 'default';
       default:
         return 'default';
     }
   };
 
-  const getCampaignStatus = (startDate: string, endDate: string) => {
-    const now = new Date();
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (now < start) return 'upcoming';
-    if (now > end) return 'ended';
-    return 'active';
+  const getStatusLabel = (status: CampaignStatus) => {
+    switch (status) {
+      case CampaignStatus.ACTIVE:
+        return 'Active';
+      case CampaignStatus.UPCOMING:
+        return 'Upcoming';
+      case CampaignStatus.COMPLETED:
+        return 'Completed';
+      case CampaignStatus.ENDED:
+        return 'Ended';
+      default:
+        return 'Unknown';
+    }
   };
 
   return (
@@ -170,7 +178,6 @@ const Dashboard: React.FC = () => {
               ) : (
                 <List>
                   {campaigns?.results?.slice(0, 5).map((campaign, index) => {
-                    const status = getCampaignStatus(campaign.start_date, campaign.end_date);
                     return (
                       <React.Fragment key={campaign.id}>
                         <ListItem
@@ -199,8 +206,8 @@ const Dashboard: React.FC = () => {
                                     {campaign.progress_percentage}%
                                   </Typography>
                                   <Chip
-                                    label={status}
-                                    color={getStatusColor(status) as any}
+                                    label={getStatusLabel(campaign.status)}
+                                    color={getStatusColor(campaign.status) as any}
                                     size="small"
                                   />
                                 </Box>

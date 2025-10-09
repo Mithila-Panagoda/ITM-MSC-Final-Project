@@ -33,7 +33,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import apiService from '../../services/api';
-import { CampaignList as CampaignListType } from '../../types';
+import { CampaignList as CampaignListType, CampaignStatus } from '../../types';
 
 const CampaignsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -54,27 +54,38 @@ const CampaignsPage: React.FC = () => {
       }),
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: CampaignStatus) => {
     switch (status) {
-      case 'active':
+      case CampaignStatus.ACTIVE:
         return 'success';
-      case 'upcoming':
+      case CampaignStatus.UPCOMING:
         return 'info';
-      case 'ended':
+      case CampaignStatus.COMPLETED:
+        return 'success';
+      case CampaignStatus.ENDED:
         return 'default';
       default:
         return 'default';
     }
   };
 
-  const getCampaignStatus = (startDate: string, endDate: string) => {
-    const now = new Date();
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  const getStatusLabel = (status: CampaignStatus) => {
+    switch (status) {
+      case CampaignStatus.ACTIVE:
+        return 'Active';
+      case CampaignStatus.UPCOMING:
+        return 'Upcoming';
+      case CampaignStatus.COMPLETED:
+        return 'Completed';
+      case CampaignStatus.ENDED:
+        return 'Ended';
+      default:
+        return 'Unknown';
+    }
+  };
 
-    if (now < start) return 'upcoming';
-    if (now > end) return 'ended';
-    return 'active';
+  const canDonate = (status: CampaignStatus) => {
+    return status === CampaignStatus.ACTIVE;
   };
 
   const formatDate = (dateString: string) => {
@@ -186,7 +197,7 @@ const CampaignsPage: React.FC = () => {
         <>
           <Box display="flex" flexWrap="wrap" gap={3}>
             {campaigns?.results?.map((campaign) => {
-              const status = getCampaignStatus(campaign.start_date, campaign.end_date);
+              const canMakeDonation = canDonate(campaign.status);
               return (
                 <Box key={campaign.id} flex="1" minWidth="300px" maxWidth="400px">
                   <Card
@@ -209,8 +220,8 @@ const CampaignsPage: React.FC = () => {
                           {campaign.title}
                         </Typography>
                         <Chip
-                          label={status}
-                          color={getStatusColor(status) as any}
+                          label={getStatusLabel(campaign.status)}
+                          color={getStatusColor(campaign.status) as any}
                           size="small"
                         />
                       </Box>
@@ -290,12 +301,13 @@ const CampaignsPage: React.FC = () => {
                         fullWidth
                         variant="contained"
                         startIcon={<AttachMoney />}
+                        disabled={!canMakeDonation}
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/campaigns/${campaign.id}`);
                         }}
                       >
-                        View & Donate
+                        {canMakeDonation ? 'View & Donate' : 'View Campaign'}
                       </Button>
                     </CardContent>
                   </Card>
