@@ -46,6 +46,13 @@ export interface Charity {
 }
 
 // Campaign Types
+export enum CampaignStatus {
+  UPCOMING = 'UPCOMING',
+  ACTIVE = 'ACTIVE',
+  COMPLETED = 'COMPLETED',
+  ENDED = 'ENDED',
+}
+
 export interface Campaign {
   id: string;
   contract_address: string;
@@ -57,6 +64,7 @@ export interface Campaign {
   raised_amount: number;
   start_date: string;
   end_date: string;
+  status: CampaignStatus;
   deployment_hash?: string;
   created_at: string;
   updated_at: string;
@@ -73,6 +81,7 @@ export interface CampaignList {
   raised_amount: number;
   start_date: string;
   end_date: string;
+  status: CampaignStatus;
   charity_name: string;
   donations_count: number;
   progress_percentage: number;

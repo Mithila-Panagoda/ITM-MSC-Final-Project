@@ -39,7 +39,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import apiService from '../../services/api';
-import { Campaign as CampaignType, DonationCreate } from '../../types';
+import { Campaign as CampaignType, DonationCreate, CampaignStatus } from '../../types';
 
 const CampaignDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -159,11 +159,32 @@ const CampaignDetail: React.FC = () => {
         return 'success';
       case 'upcoming':
         return 'info';
+      case 'completed':
+        return 'success';
       case 'ended':
         return 'default';
       default:
         return 'default';
     }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'Active';
+      case 'upcoming':
+        return 'Upcoming';
+      case 'completed':
+        return 'Completed';
+      case 'ended':
+        return 'Ended';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  const canDonate = (status: string) => {
+    return status === 'active';
   };
 
   const formatDate = (dateString: string) => {
@@ -233,7 +254,7 @@ const CampaignDetail: React.FC = () => {
                       {campaign.charity.name}
                     </Typography>
                     <Chip
-                      label={stats?.status || 'unknown'}
+                      label={getStatusLabel(stats?.status || 'unknown')}
                       color={getStatusColor(stats?.status || 'unknown') as any}
                       sx={{ ml: 2 }}
                     />
@@ -244,9 +265,9 @@ const CampaignDetail: React.FC = () => {
                   size="large"
                   startIcon={<AttachMoney />}
                   onClick={() => setDonateDialogOpen(true)}
-                  disabled={stats?.status === 'ended'}
+                  disabled={!canDonate(stats?.status || 'unknown')}
                 >
-                  Donate Now
+                  {canDonate(stats?.status || 'unknown') ? 'Donate Now' : 'Campaign Completed'}
                 </Button>
               </Box>
 
@@ -368,14 +389,14 @@ const CampaignDetail: React.FC = () => {
                       <ListItem>
                         <ListItemAvatar>
                           <Avatar>
-                            {donation.user_first_name?.charAt(0) || 'A'}
+                            {donation.user_email?.charAt(0) || 'A'}
                           </Avatar>
                         </ListItemAvatar>
                         <ListItemText
                           primary={
                             <Box display="flex" justifyContent="space-between">
                               <Typography variant="body2" fontWeight="bold">
-                                {donation.user_first_name} {donation.user_last_name}
+                                {donation.user_email} 
                               </Typography>
                               <Typography variant="body2" color="primary">
                                 {donation.amount ? formatCurrency(donation.amount) : `${donation.token_quantity} tokens`}

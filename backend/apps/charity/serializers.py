@@ -62,6 +62,7 @@ class CampaignListSerializer(serializers.ModelSerializer):
             "raised_amount",
             "start_date",
             "end_date",
+            "status",
             "charity_name",
             "donations_count",
             "progress_percentage",
@@ -101,6 +102,7 @@ class CampaignSerializer(serializers.ModelSerializer):
             "raised_amount",
             "start_date",
             "end_date",
+            "status",
             "deployment_hash",
             "created_at",
             "updated_at",
@@ -108,7 +110,7 @@ class CampaignSerializer(serializers.ModelSerializer):
             "progress_percentage",
             "recent_donations",
         ]
-        read_only_fields = ["id", "raised_amount", "created_at", "updated_at"]
+        read_only_fields = ["id", "raised_amount", "status", "created_at", "updated_at"]
 
     def get_donations_count(self, obj):
         """Get total number of completed donations"""
@@ -204,6 +206,7 @@ class DonationCreateSerializer(serializers.ModelSerializer):
         """Validate donation creation data"""
         amount = data.get("amount")
         token_quantity = data.get("token_quantity")
+        campaign = data.get("campaign")
 
         if not amount and not token_quantity:
             raise serializers.ValidationError(
@@ -215,6 +218,50 @@ class DonationCreateSerializer(serializers.ModelSerializer):
 
         if token_quantity and token_quantity <= 0:
             raise serializers.ValidationError("Token quantity must be greater than 0")
+
+        # Check if campaign can accept donations
+        if campaign and not campaign.can_accept_donations():
+            if campaign.status == "COMPLETED":
+                raise serializers.ValidationError(
+                    "This campaign has reached its funding goal and is no longer accepting donations."
+                )
+            elif campaign.status == "ENDED":
+                raise serializers.ValidationError(
+                    "This campaign has ended and is no longer accepting donations."
+                )
+            elif campaign.status == "UPCOMING":
+                raise serializers.ValidationError(
+                    "This campaign has not started yet and is not accepting donations."
+                )
+            else:
+                raise serializers.ValidationError(
+                    "This campaign is not currently accepting donations."
+                )
+
+        # Check if donation would exceed the campaign goal
+        if campaign:
+            # Calculate donation value
+            donation_value = 0
+            if amount:
+                donation_value = amount
+            elif token_quantity and data.get("token"):
+                # For token donations, calculate the equivalent amount
+                token = data.get("token")
+                if hasattr(token, 'value_fiat_lkr'):
+                    # Convert token value to campaign currency
+                    # Note: This assumes 1 LKR = 1 USD for simplicity
+                    # In a real implementation, you'd have proper currency conversion
+                    donation_value = float(token_quantity) * float(token.value_fiat_lkr)
+                else:
+                    raise serializers.ValidationError("Invalid token provided for donation")
+            
+            # Check if donation would exceed the goal
+            if not campaign.can_accept_donation_amount(donation_value):
+                remaining_amount = campaign.get_remaining_amount()
+                raise serializers.ValidationError(
+                    f"This donation of ${donation_value:.2f} would exceed the campaign goal. "
+                    f"The maximum donation allowed is ${remaining_amount:.2f} to reach the goal of ${campaign.goal_amount}."
+                )
 
         return data
 
