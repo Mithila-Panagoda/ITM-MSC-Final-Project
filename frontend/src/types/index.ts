@@ -14,6 +14,8 @@ export interface User {
   last_name: string;
   name: string;
   role: UserRole;
+  wallet_address?: string;
+  auth_type?: 'EMAIL' | 'WALLET';
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -28,6 +30,13 @@ export interface LoginResponse {
   refresh: string;
   access: string;
   message: string;
+}
+
+export interface WalletLoginRequest {
+  wallet_address: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
 }
 
 // Charity Types

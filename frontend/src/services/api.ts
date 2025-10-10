@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import {
   LoginRequest,
   LoginResponse,
+  WalletLoginRequest,
   User,
   Charity,
   Campaign,
@@ -120,6 +121,24 @@ class ApiService {
   async getCurrentUser(): Promise<User> {
     const response: AxiosResponse<User> = await this.api.get('/users/me/');
     return response.data;
+  }
+
+  async walletLogin(data: WalletLoginRequest): Promise<LoginResponse> {
+    const response: AxiosResponse<LoginResponse | { requires_profile: boolean }> = await this.api.post(
+      '/users/wallet-login/',
+      data
+    );
+
+    // If backend signals profile completion required, throw a typed error for UI handling
+    if ((response.data as any)?.requires_profile) {
+      throw { requires_profile: true };
+    }
+
+    const { access, refresh } = response.data as LoginResponse;
+    this.setAuthToken(access);
+    localStorage.setItem('refresh_token', refresh);
+    
+    return response.data as LoginResponse;
   }
 
   // Charity endpoints

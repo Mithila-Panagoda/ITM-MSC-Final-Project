@@ -11,10 +11,16 @@ class Roles(models.TextChoices):
     CUSTOMER = 'CUSTOMER', _('CUSTOMER')
     CHARITY_MANAGER = 'CHARITY_MANAGER', _('CHARITY_MANAGER')
 
+class AuthType(models.TextChoices):
+    EMAIL = 'EMAIL', _('Email')
+    WALLET = 'WALLET', _('Wallet')
+
 class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, blank=True, null=True)
     role = models.CharField(max_length=50, choices=Roles.choices, default=Roles.USER)
+    wallet_address = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    auth_type = models.CharField(max_length=10, choices=AuthType.choices, default=AuthType.EMAIL)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

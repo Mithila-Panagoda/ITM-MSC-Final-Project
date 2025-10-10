@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, LoginRequest, UserRole } from '../types';
+import { User, LoginRequest, WalletLoginRequest, UserRole } from '../types';
 import apiService from '../services/api';
 
 interface AuthContextType {
   user: User | null;
   login: (credentials: LoginRequest) => Promise<void>;
+  walletLogin: (data: WalletLoginRequest) => Promise<void>;
   logout: () => void;
   loading: boolean;
   isAuthenticated: boolean;
   hasRole: (roles: UserRole | UserRole[]) => boolean;
   isCharityManager: boolean;
+  justLoggedOut: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,6 +23,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [justLoggedOut, setJustLoggedOut] = useState(false);
 
   const isAuthenticated = !!user;
 
@@ -52,9 +55,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const walletLogin = async (data: WalletLoginRequest) => {
+    try {
+      await apiService.walletLogin(data);
+      const userData = await apiService.getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const logout = () => {
     apiService.logout();
     setUser(null);
+    setJustLoggedOut(true);
+    // Reset the logout flag after a short delay
+    setTimeout(() => setJustLoggedOut(false), 1000);
   };
 
   const hasRole = (roles: UserRole | UserRole[]): boolean => {
@@ -68,11 +84,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value: AuthContextType = {
     user,
     login,
+    walletLogin,
     logout,
     loading,
     isAuthenticated,
     hasRole,
     isCharityManager,
+    justLoggedOut,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
