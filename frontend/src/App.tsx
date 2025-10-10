@@ -3,7 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { ThirdwebProvider } from 'thirdweb/react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { client } from './config/thirdweb';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import RoleBasedRoute from './components/Auth/RoleBasedRoute';
 import Layout from './components/Layout/Layout';
@@ -194,11 +196,13 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <AuthProvider>
-          <Router>
-            <AppRoutes />
-          </Router>
-        </AuthProvider>
+        <ThirdwebProvider>
+          <AuthProvider>
+            <Router>
+              <AppRoutes />
+            </Router>
+          </AuthProvider>
+        </ThirdwebProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
