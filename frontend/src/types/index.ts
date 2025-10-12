@@ -196,3 +196,38 @@ export interface PaginatedResponse<T> {
   previous?: string;
   results: T[];
 }
+
+// Campaign Event Types
+export interface CampaignEvent {
+  id: string;
+  campaign: string;
+  campaign_title: string;
+  charity_name: string;
+  title: string;
+  description: string;
+  amount: number | string; // Can be number or string from API
+  image?: string;
+  image_url?: string;
+  event_date: string;
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  created_by: string;
+  created_by_name: string;
+  created_by_email: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CampaignEventCreate {
+  title: string;
+  description: string;
+  amount: number;
+  image?: File;
+  event_date: string;
+}
+
+export interface CampaignUtilization {
+  total_allocated: number | string; // Can be number or string from API
+  remaining_funds: number | string; // Can be number or string from API
+  utilization_percentage: number; // Always a number from API
+  events_count: number;
+}

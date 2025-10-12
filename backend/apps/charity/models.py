@@ -1,6 +1,8 @@
 import uuid
 
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.db.models import Sum
 
 from apps.users.models import User
 
@@ -129,3 +131,88 @@ class Donation(models.Model):
     )
     donation_timestamp = models.DateTimeField(null=True, blank=True, auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CampaignEventStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    COMPLETED = "COMPLETED", "Completed"
+    CANCELLED = "CANCELLED", "Cancelled"
+
+
+class CampaignEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    campaign = models.ForeignKey(
+        Campaign, related_name="events", on_delete=models.CASCADE
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    image = models.ImageField(upload_to="campaign_events/", blank=True, null=True)
+    event_date = models.DateTimeField()
+    created_by = models.ForeignKey(
+        User, related_name="created_events", on_delete=models.CASCADE
+    )
+    status = models.CharField(
+        max_length=10, choices=CampaignEventStatus.choices, default=CampaignEventStatus.PENDING
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-event_date"]
+        verbose_name = "Campaign Event"
+        verbose_name_plural = "Campaign Events"
+
+    def __str__(self):
+        return f"{self.title} - {self.campaign.title}"
+
+    def clean(self):
+        """Validate campaign event data"""
+        super().clean()
+        
+        # Check if campaign is completed or ended
+        if self.campaign_id and self.campaign.status not in [CampaignStatus.COMPLETED, CampaignStatus.ENDED]:
+            raise ValidationError("Events can only be created for completed or ended campaigns.")
+        
+        # Check if amount is positive
+        if self.amount <= 0:
+            raise ValidationError("Amount must be greater than zero.")
+        
+        # Check if total allocated amount doesn't exceed raised amount
+        if self.campaign_id:
+            total_allocated = CampaignEvent.objects.filter(
+                campaign=self.campaign,
+                status__in=[CampaignEventStatus.PENDING, CampaignEventStatus.COMPLETED]
+            ).exclude(id=self.id).aggregate(total=Sum('amount'))['total'] or 0
+            
+            if total_allocated + self.amount > self.campaign.raised_amount:
+                raise ValidationError(
+                    f"Total allocated amount ({total_allocated + self.amount}) cannot exceed "
+                    f"campaign raised amount ({self.campaign.raised_amount})."
+                )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_total_allocated_for_campaign(cls, campaign):
+        """Get total allocated amount for a campaign"""
+        return cls.objects.filter(
+            campaign=campaign,
+            status__in=[CampaignEventStatus.PENDING, CampaignEventStatus.COMPLETED]
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+    @classmethod
+    def get_remaining_funds_for_campaign(cls, campaign):
+        """Get remaining unallocated funds for a campaign"""
+        total_allocated = cls.get_total_allocated_for_campaign(campaign)
+        return max(0, campaign.raised_amount - total_allocated)
+
+    @classmethod
+    def get_utilization_percentage_for_campaign(cls, campaign):
+        """Get fund utilization percentage for a campaign"""
+        if campaign.raised_amount <= 0:
+            return 0
+        total_allocated = cls.get_total_allocated_for_campaign(campaign)
+        return round((total_allocated / campaign.raised_amount) * 100, 2)

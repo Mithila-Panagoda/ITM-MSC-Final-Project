@@ -6,13 +6,17 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 
-from .models import Charity, Campaign, Donation, DonationStatus
+from .models import Charity, Campaign, Donation, DonationStatus, CampaignEvent
 from .serializers import (
     CharitySerializer,
     CampaignSerializer,
     CampaignListSerializer,
     DonationSerializer,
     DonationCreateSerializer,
+    CampaignEventSerializer,
+    CampaignEventListSerializer,
+    CampaignEventCreateSerializer,
+    CampaignUtilizationSerializer,
 )
 
 
@@ -209,6 +213,77 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
         return Response(stats)
 
+    @action(detail=True, methods=["get"])
+    def events(self, request, pk=None):
+        """Get all events for a specific campaign"""
+        campaign = self.get_object()
+        
+        # Only show events for completed/ended campaigns
+        if campaign.status not in ["COMPLETED", "ENDED"]:
+            return Response(
+                {"error": "Events are only available for completed or ended campaigns"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        events = campaign.events.all().select_related("created_by")
+        serializer = CampaignEventListSerializer(
+            events, many=True, context={"request": request}
+        )
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def allocate_funds(self, request, pk=None):
+        """Allocate funds for a specific campaign (create event)"""
+        campaign = self.get_object()
+        
+        # Check if user is charity manager
+        if request.user.role != "CHARITY_MANAGER":
+            return Response(
+                {"error": "Only charity managers can allocate campaign funds"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Check if campaign is completed or ended
+        if campaign.status not in ["COMPLETED", "ENDED"]:
+            return Response(
+                {"error": "Funds can only be allocated for completed or ended campaigns"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = CampaignEventCreateSerializer(
+            data=request.data, 
+            context={"request": request, "campaign": campaign}
+        )
+        
+        if serializer.is_valid():
+            event = serializer.save()
+            response_serializer = CampaignEventSerializer(
+                event, context={"request": request}
+            )
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["get"])
+    def utilization(self, request, pk=None):
+        """Get fund utilization metrics for a specific campaign"""
+        campaign = self.get_object()
+        
+        total_allocated = CampaignEvent.get_total_allocated_for_campaign(campaign)
+        remaining_funds = CampaignEvent.get_remaining_funds_for_campaign(campaign)
+        utilization_percentage = CampaignEvent.get_utilization_percentage_for_campaign(campaign)
+        events_count = campaign.events.count()
+        
+        data = {
+            "total_allocated": float(total_allocated),
+            "remaining_funds": float(remaining_funds),
+            "utilization_percentage": utilization_percentage,
+            "events_count": events_count,
+        }
+        
+        serializer = CampaignUtilizationSerializer(data)
+        return Response(serializer.data)
+
 
 class DonationViewSet(viewsets.ModelViewSet):
     """
@@ -279,3 +354,97 @@ class DonationViewSet(viewsets.ModelViewSet):
         }
 
         return Response(stats)
+
+
+class CampaignEventViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing campaign events.
+    Charity managers can create events for their campaigns.
+    """
+
+    serializer_class = CampaignEventSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["title", "description", "campaign__title"]
+    ordering_fields = ["amount", "event_date", "created_at"]
+    ordering = ["-event_date"]
+
+    def get_queryset(self):
+        """Filter events based on campaign and permissions"""
+        queryset = CampaignEvent.objects.all().select_related(
+            "campaign", "campaign__charity", "created_by"
+        )
+
+        # Filter by campaign if provided
+        campaign_id = self.request.query_params.get("campaign")
+        if campaign_id:
+            queryset = queryset.filter(campaign_id=campaign_id)
+
+        # Only show events for completed/ended campaigns
+        queryset = queryset.filter(
+            campaign__status__in=["COMPLETED", "ENDED"]
+        )
+
+        return queryset
+
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action"""
+        if self.action == "list":
+            return CampaignEventListSerializer
+        elif self.action == "create":
+            return CampaignEventCreateSerializer
+        return CampaignEventSerializer
+
+    def perform_create(self, serializer):
+        """Set the current user as the event creator"""
+        serializer.save(created_by=self.request.user)
+
+    def get_permissions(self):
+        """
+        Instantiates and returns the list of permissions that this view requires.
+        """
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAuthenticatedOrReadOnly]
+        return [permission() for permission in permission_classes]
+
+    def create(self, request, *args, **kwargs):
+        """Override create to add campaign context"""
+        campaign_id = request.data.get("campaign")
+        if not campaign_id:
+            return Response(
+                {"error": "Campaign ID is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            campaign = Campaign.objects.get(id=campaign_id)
+        except Campaign.DoesNotExist:
+            return Response(
+                {"error": "Campaign not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if user is charity manager
+        if request.user.role != "CHARITY_MANAGER":
+            return Response(
+                {"error": "Only charity managers can create campaign events"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Check if campaign is completed or ended
+        if campaign.status not in ["COMPLETED", "ENDED"]:
+            return Response(
+                {"error": "Events can only be created for completed or ended campaigns"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = self.get_serializer(
+            data=request.data, 
+            context={"request": request, "campaign": campaign}
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)

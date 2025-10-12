@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
-from .models import Charity, Campaign, Donation, DonationStatus
+from .models import Charity, Campaign, Donation, DonationStatus, CampaignEvent, CampaignEventStatus
 
 User = get_user_model()
 
@@ -88,6 +88,10 @@ class CampaignSerializer(serializers.ModelSerializer):
     donations_count = serializers.SerializerMethodField()
     progress_percentage = serializers.SerializerMethodField()
     recent_donations = serializers.SerializerMethodField()
+    total_allocated = serializers.SerializerMethodField()
+    remaining_funds = serializers.SerializerMethodField()
+    utilization_percentage = serializers.SerializerMethodField()
+    events_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Campaign
@@ -109,6 +113,10 @@ class CampaignSerializer(serializers.ModelSerializer):
             "donations_count",
             "progress_percentage",
             "recent_donations",
+            "total_allocated",
+            "remaining_funds",
+            "utilization_percentage",
+            "events_count",
         ]
         read_only_fields = ["id", "raised_amount", "status", "created_at", "updated_at"]
 
@@ -128,6 +136,22 @@ class CampaignSerializer(serializers.ModelSerializer):
             "-donation_timestamp"
         )[:5]
         return DonationSerializer(recent, many=True, context=self.context).data
+
+    def get_total_allocated(self, obj):
+        """Get total allocated amount for this campaign"""
+        return float(CampaignEvent.get_total_allocated_for_campaign(obj))
+
+    def get_remaining_funds(self, obj):
+        """Get remaining unallocated funds for this campaign"""
+        return float(CampaignEvent.get_remaining_funds_for_campaign(obj))
+
+    def get_utilization_percentage(self, obj):
+        """Get fund utilization percentage for this campaign"""
+        return CampaignEvent.get_utilization_percentage_for_campaign(obj)
+
+    def get_events_count(self, obj):
+        """Get total number of events for this campaign"""
+        return obj.events.count()
 
     def validate(self, data):
         """Validate campaign data"""
@@ -271,3 +295,145 @@ class DonationCreateSerializer(serializers.ModelSerializer):
         # Set status to COMPLETED since we're not doing actual payment processing
         validated_data["status"] = DonationStatus.COMPLETED
         return super().create(validated_data)
+
+
+class CampaignEventListSerializer(serializers.ModelSerializer):
+    """Serializer for CampaignEvent list view (minimal fields)"""
+    
+    created_by_name = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CampaignEvent
+        fields = [
+            "id",
+            "title",
+            "description",
+            "amount",
+            "image_url",
+            "event_date",
+            "status",
+            "created_by_name",
+            "created_at",
+        ]
+
+    def get_created_by_name(self, obj):
+        """Get the name of the user who created the event"""
+        return f"{obj.created_by.first_name} {obj.created_by.last_name}".strip() or obj.created_by.email
+
+    def get_image_url(self, obj):
+        """Get the image URL if available"""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+        return None
+
+
+class CampaignEventSerializer(serializers.ModelSerializer):
+    """Serializer for CampaignEvent detail view"""
+    
+    created_by_name = serializers.SerializerMethodField()
+    created_by_email = serializers.CharField(source="created_by.email", read_only=True)
+    campaign_title = serializers.CharField(source="campaign.title", read_only=True)
+    charity_name = serializers.CharField(source="campaign.charity.name", read_only=True)
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CampaignEvent
+        fields = [
+            "id",
+            "campaign",
+            "campaign_title",
+            "charity_name",
+            "title",
+            "description",
+            "amount",
+            "image",
+            "image_url",
+            "event_date",
+            "status",
+            "created_by",
+            "created_by_name",
+            "created_by_email",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_created_by_name(self, obj):
+        """Get the name of the user who created the event"""
+        return f"{obj.created_by.first_name} {obj.created_by.last_name}".strip() or obj.created_by.email
+
+    def get_image_url(self, obj):
+        """Get the image URL if available"""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+        return None
+
+
+class CampaignEventCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating campaign events"""
+    
+    class Meta:
+        model = CampaignEvent
+        fields = [
+            "title",
+            "description",
+            "amount",
+            "image",
+            "event_date",
+        ]
+
+    def validate(self, data):
+        """Validate campaign event creation data"""
+        campaign = self.context.get('campaign')
+        user = self.context.get('request').user
+        
+        if not campaign:
+            raise serializers.ValidationError("Campaign is required")
+        
+        # Check if campaign is completed or ended
+        if campaign.status not in ["COMPLETED", "ENDED"]:
+            raise serializers.ValidationError(
+                "Events can only be created for completed or ended campaigns."
+            )
+        
+        # Check if user is charity manager for this campaign's charity
+        if user.role != 'CHARITY_MANAGER':
+            raise serializers.ValidationError(
+                "Only charity managers can create campaign events."
+            )
+        
+        # Check if amount is positive
+        amount = data.get('amount')
+        if amount and amount <= 0:
+            raise serializers.ValidationError("Amount must be greater than zero.")
+        
+        # Check if total allocated amount doesn't exceed raised amount
+        if amount:
+            total_allocated = CampaignEvent.get_total_allocated_for_campaign(campaign)
+            if total_allocated + amount > campaign.raised_amount:
+                remaining = campaign.raised_amount - total_allocated
+                raise serializers.ValidationError(
+                    f"Amount exceeds remaining funds. Maximum allocation allowed: ${remaining:.2f}"
+                )
+        
+        return data
+
+    def create(self, validated_data):
+        """Create campaign event with current user and campaign"""
+        validated_data["created_by"] = self.context["request"].user
+        validated_data["campaign"] = self.context["campaign"]
+        return super().create(validated_data)
+
+
+class CampaignUtilizationSerializer(serializers.Serializer):
+    """Serializer for campaign fund utilization metrics"""
+    
+    total_allocated = serializers.DecimalField(max_digits=10, decimal_places=2)
+    remaining_funds = serializers.DecimalField(max_digits=10, decimal_places=2)
+    utilization_percentage = serializers.FloatField()
+    events_count = serializers.IntegerField()

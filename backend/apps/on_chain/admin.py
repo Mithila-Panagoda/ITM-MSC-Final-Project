@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import Token, OnChainTransaction
+from .models import Token, OnChainTransaction, OnChainCampaignEvent
 
 
 @admin.register(Token)
@@ -108,6 +108,68 @@ class OnChainTransactionAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         # Optimize queries by selecting related token and charity
         return super().get_queryset(request).select_related("token", "token__charity")
+
+
+@admin.register(OnChainCampaignEvent)
+class OnChainCampaignEventAdmin(admin.ModelAdmin):
+    list_display = [
+        "campaign_event_link",
+        "transaction_hash_short",
+        "is_on_chain_badge",
+        "blockchain_timestamp",
+        "created_at",
+    ]
+    list_filter = [
+        "is_on_chain",
+        "blockchain_timestamp",
+        "created_at",
+        "campaign_event__campaign__charity",
+    ]
+    search_fields = [
+        "transaction_hash",
+        "campaign_event__title",
+        "campaign_event__campaign__title",
+        "campaign_event__campaign__charity__name",
+    ]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    autocomplete_fields = ["campaign_event"]
+    date_hierarchy = "blockchain_timestamp"
+
+    fieldsets = (
+        ("Campaign Event", {"fields": ("campaign_event",)}),
+        ("Blockchain Details", {"fields": ("transaction_hash", "blockchain_timestamp", "is_on_chain")}),
+        (
+            "Timestamps",
+            {"fields": ("id", "created_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )
+
+    def campaign_event_link(self, obj):
+        url = reverse("admin:charity_campaignevent_change", args=[obj.campaign_event.id])
+        return format_html('<a href="{}">{}</a>', url, obj.campaign_event.title)
+
+    campaign_event_link.short_description = "Campaign Event"
+
+    def transaction_hash_short(self, obj):
+        if obj.transaction_hash:
+            return f"{obj.transaction_hash[:10]}...{obj.transaction_hash[-8:]}"
+        return "-"
+
+    transaction_hash_short.short_description = "Transaction Hash"
+
+    def is_on_chain_badge(self, obj):
+        if obj.is_on_chain:
+            return format_html('<span style="color: #28a745;">✅ On-Chain</span>')
+        else:
+            return format_html('<span style="color: #6c757d;">⏳ Pending</span>')
+
+    is_on_chain_badge.short_description = "Status"
+
+    def get_queryset(self, request):
+        # Optimize queries by selecting related campaign event and campaign
+        return super().get_queryset(request).select_related(
+            "campaign_event", "campaign_event__campaign", "campaign_event__campaign__charity"
+        )
 
 
 # Add some inline admin configurations for better UX

@@ -145,6 +145,7 @@ web3==5.27.0
 webencodings==0.5.1
 websockets==9.1
 whitenoise==6.6.0
+Pillow==10.4.0
 wrapt==1.16.0
 yarg==0.1.9
 yarl==1.9.4

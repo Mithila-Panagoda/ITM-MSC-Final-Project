@@ -16,6 +16,9 @@ import {
   DonationStats,
   TransactionStats,
   PaginatedResponse,
+  CampaignEvent,
+  CampaignEventCreate,
+  CampaignUtilization,
 } from '../types';
 
 class ApiService {
@@ -406,6 +409,60 @@ class ApiService {
       '/transactions/statistics/'
     );
     return response.data;
+  }
+
+  // Campaign Events API methods
+  async getCampaignEvents(campaignId: string): Promise<CampaignEvent[]> {
+    const response: AxiosResponse<CampaignEvent[]> = await this.api.get(
+      `/campaigns/${campaignId}/events/`
+    );
+    return response.data;
+  }
+
+  async createCampaignEvent(campaignId: string, data: FormData): Promise<CampaignEvent> {
+    const response: AxiosResponse<CampaignEvent> = await this.api.post(
+      `/campaigns/${campaignId}/allocate_funds/`,
+      data,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  }
+
+  async getCampaignUtilization(campaignId: string): Promise<CampaignUtilization> {
+    const response: AxiosResponse<CampaignUtilization> = await this.api.get(
+      `/campaigns/${campaignId}/utilization/`
+    );
+    return response.data;
+  }
+
+  async getAllCampaignEvents(): Promise<CampaignEvent[]> {
+    const response: AxiosResponse<CampaignEvent[]> = await this.api.get(
+      '/campaign-events/'
+    );
+    return response.data;
+  }
+
+  async getCampaignEvent(eventId: string): Promise<CampaignEvent> {
+    const response: AxiosResponse<CampaignEvent> = await this.api.get(
+      `/campaign-events/${eventId}/`
+    );
+    return response.data;
+  }
+
+  async updateCampaignEvent(eventId: string, data: Partial<CampaignEventCreate>): Promise<CampaignEvent> {
+    const response: AxiosResponse<CampaignEvent> = await this.api.patch(
+      `/campaign-events/${eventId}/`,
+      data
+    );
+    return response.data;
+  }
+
+  async deleteCampaignEvent(eventId: string): Promise<void> {
+    await this.api.delete(`/campaign-events/${eventId}/`);
   }
 }
 
