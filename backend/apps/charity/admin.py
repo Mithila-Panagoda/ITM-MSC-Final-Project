@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import Charity, Campaign, Donation, DonationStatus
+from .models import Charity, Campaign, Donation, DonationStatus, CampaignEvent, CampaignEventStatus
 
 
 @admin.register(Charity)
@@ -249,6 +249,81 @@ class DonationAdmin(admin.ModelAdmin):
     status_badge.short_description = "Status"
 
 
+@admin.register(CampaignEvent)
+class CampaignEventAdmin(admin.ModelAdmin):
+    list_display = [
+        "title",
+        "campaign_link",
+        "amount",
+        "status_badge",
+        "created_by_link",
+        "event_date",
+        "created_at",
+    ]
+    list_filter = [
+        "status",
+        "campaign__charity",
+        "created_by",
+        "event_date",
+        "created_at",
+    ]
+    search_fields = [
+        "title",
+        "description",
+        "campaign__title",
+        "campaign__charity__name",
+        "created_by__name",
+        "created_by__email",
+    ]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    autocomplete_fields = ["campaign", "created_by"]
+    date_hierarchy = "event_date"
+    raw_id_fields = ["campaign", "created_by"]
+
+    fieldsets = (
+        ("Event Details", {"fields": ("title", "description", "campaign")}),
+        ("Financial Information", {"fields": ("amount",)}),
+        ("Event Information", {"fields": ("event_date", "image", "status")}),
+        ("Creator", {"fields": ("created_by",)}),
+        (
+            "Timestamps",
+            {"fields": ("id", "created_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )
+
+    def campaign_link(self, obj):
+        url = reverse("admin:charity_campaign_change", args=[obj.campaign.id])
+        return format_html('<a href="{}">{}</a>', url, obj.campaign.title)
+
+    campaign_link.short_description = "Campaign"
+
+    def created_by_link(self, obj):
+        url = reverse("admin:users_user_change", args=[obj.created_by.id])
+        return format_html(
+            '<a href="{}">{}</a>', url, obj.created_by.name or obj.created_by.email
+        )
+
+    created_by_link.short_description = "Created By"
+
+    def status_badge(self, obj):
+        colors = {
+            "PENDING": "#ffc107",
+            "COMPLETED": "#28a745",
+            "CANCELLED": "#dc3545",
+        }
+        icons = {"PENDING": "⏳", "COMPLETED": "✅", "CANCELLED": "❌"}
+        color = colors.get(obj.status, "#6c757d")
+        icon = icons.get(obj.status, "❓")
+        return format_html(
+            '<span style="color: {};">{} {}</span>',
+            color,
+            icon,
+            obj.get_status_display(),
+        )
+
+    status_badge.short_description = "Status"
+
+
 # Inline admin configurations
 class CampaignInline(admin.TabularInline):
     model = Campaign
@@ -266,9 +341,17 @@ class DonationInline(admin.TabularInline):
     show_change_link = True
 
 
+class CampaignEventInline(admin.TabularInline):
+    model = CampaignEvent
+    extra = 0
+    fields = ["title", "amount", "status", "event_date", "created_by"]
+    readonly_fields = ["created_by"]
+    show_change_link = True
+
+
 # Add inlines to existing admin classes
 CharityAdmin.inlines = [CampaignInline]
-CampaignAdmin.inlines = [DonationInline]
+CampaignAdmin.inlines = [DonationInline, CampaignEventInline]
 
 # Try to add Token inline to Charity (requires on_chain app)
 try:

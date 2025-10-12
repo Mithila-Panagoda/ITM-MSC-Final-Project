@@ -34,12 +34,16 @@ import {
   CalendarToday,
   TrendingUp,
   Receipt,
+  Add,
+  Timeline,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import apiService from '../../services/api';
-import { Campaign as CampaignType, DonationCreate, CampaignStatus } from '../../types';
+import { Campaign as CampaignType, DonationCreate, CampaignStatus, UserRole } from '../../types';
+import CampaignEventsList from './CampaignEventsList';
+import CreateEventDialog from './CreateEventDialog';
 
 const CampaignDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +52,7 @@ const CampaignDetail: React.FC = () => {
   const [donateDialogOpen, setDonateDialogOpen] = useState(false);
   const [donationSuccess, setDonationSuccess] = useState(false);
   const [donationError, setDonationError] = useState<string | null>(null);
+  const [createEventDialogOpen, setCreateEventDialogOpen] = useState(false);
 
   const {
     data: campaign,
@@ -74,6 +79,17 @@ const CampaignDetail: React.FC = () => {
   const { data: tokens } = useQuery({
     queryKey: ['tokens'],
     queryFn: () => apiService.getTokens(),
+  });
+
+  const { data: utilization } = useQuery({
+    queryKey: ['campaign-utilization', id],
+    queryFn: () => apiService.getCampaignUtilization(id!),
+    enabled: !!id,
+  });
+
+  const { data: currentUser } = useQuery({
+    queryKey: ['current-user'],
+    queryFn: () => apiService.getCurrentUser(),
   });
 
   const donateMutation = useMutation({
@@ -427,6 +443,36 @@ const CampaignDetail: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* Fund Allocation Events - Only for completed/ended campaigns */}
+          {(campaign?.status === CampaignStatus.COMPLETED || campaign?.status === CampaignStatus.ENDED) && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="h6">
+                    <Timeline sx={{ mr: 1, verticalAlign: 'middle' }} />
+                    Fund Allocation
+                  </Typography>
+                  {currentUser?.role === UserRole.CHARITY_MANAGER && (
+                    <Button
+                      variant="contained"
+                      startIcon={<Add />}
+                      onClick={() => setCreateEventDialogOpen(true)}
+                      size="small"
+                    >
+                      Allocate Funds
+                    </Button>
+                  )}
+                </Box>
+                
+                <CampaignEventsList
+                  campaignId={id!}
+                  isCharityManager={currentUser?.role === UserRole.CHARITY_MANAGER}
+                  raisedAmount={campaign?.raised_amount || 0}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Charity Info */}
           <Card>
             <CardContent>
@@ -571,6 +617,15 @@ const CampaignDetail: React.FC = () => {
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* Create Event Dialog */}
+      <CreateEventDialog
+        open={createEventDialogOpen}
+        onClose={() => setCreateEventDialogOpen(false)}
+        campaignId={id!}
+        raisedAmount={campaign?.raised_amount || 0}
+        utilization={utilization}
+      />
     </Box>
   );
 };
