@@ -27,6 +27,7 @@ import {
   CalendarToday,
   FilterList,
   Add,
+  OpenInNew,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -34,6 +35,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import apiService from '../../services/api';
 import { CampaignList as CampaignListType, CampaignStatus } from '../../types';
+import { getTransactionUrl } from '../../utils/blockchain';
 
 const CampaignsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -219,11 +221,26 @@ const CampaignsPage: React.FC = () => {
                         <Typography variant="h6" component="h2" noWrap>
                           {campaign.title}
                         </Typography>
-                        <Chip
-                          label={getStatusLabel(campaign.status)}
-                          color={getStatusColor(campaign.status) as any}
-                          size="small"
-                        />
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Chip
+                            label={getStatusLabel(campaign.status)}
+                            color={getStatusColor(campaign.status) as any}
+                            size="small"
+                          />
+                          {campaign.on_chain_id && campaign.transaction_hash && (
+                            <Button
+                              size="small"
+                              startIcon={<OpenInNew />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(getTransactionUrl(campaign.transaction_hash!), '_blank');
+                              }}
+                              sx={{ minWidth: 'auto', p: 0.5 }}
+                            >
+                              Sepolia
+                            </Button>
+                          )}
+                        </Box>
                       </Box>
 
                       <Typography

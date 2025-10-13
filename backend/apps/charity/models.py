@@ -16,15 +16,21 @@ class Charity(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    contract_address = models.CharField(
-        max_length=255, unique=True, null=True, blank=True
-    )
-    deployment_hash = models.CharField(
+    # Blockchain integration fields
+    on_chain_id = models.IntegerField(null=True, blank=True, unique=True)
+    transaction_hash = models.CharField(
         max_length=255, unique=True, null=True, blank=True
     )
 
     def __str__(self):
         return self.name
+
+    @property
+    def charity_explorer_url(self):
+        """Generate Sepolia Etherscan URL for charity registration transaction"""
+        if self.transaction_hash:
+            return f"https://sepolia.etherscan.io/tx/{self.transaction_hash}"
+        return None
 
     # TODO: in chairty contract maintain arr of campaigns_addresses
 
@@ -38,7 +44,6 @@ class CampaignStatus(models.TextChoices):
 
 class Campaign(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    contract_address = models.CharField(max_length=255, unique=True)
     charity = models.ForeignKey(
         Charity, related_name="campaigns", on_delete=models.CASCADE
     )
@@ -54,12 +59,21 @@ class Campaign(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    deployment_hash = models.CharField(
+    # Blockchain integration fields
+    on_chain_id = models.IntegerField(null=True, blank=True, unique=True)
+    transaction_hash = models.CharField(
         max_length=255, unique=True, null=True, blank=True
     )
 
     def __str__(self):
         return self.title
+
+    @property
+    def campaign_explorer_url(self):
+        """Generate Sepolia Etherscan URL for campaign creation transaction"""
+        if self.transaction_hash:
+            return f"https://sepolia.etherscan.io/tx/{self.transaction_hash}"
+        return None
 
     def is_active(self):
         """Check if campaign is currently active (not completed or ended)"""
@@ -131,6 +145,16 @@ class Donation(models.Model):
     )
     donation_timestamp = models.DateTimeField(null=True, blank=True, auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Blockchain integration fields
+    transaction_hash = models.CharField(max_length=255, null=True, blank=True, unique=True)
+
+    @property
+    def donation_explorer_url(self):
+        """Generate Sepolia Etherscan URL for donation transaction"""
+        if self.transaction_hash:
+            return f"https://sepolia.etherscan.io/tx/{self.transaction_hash}"
+        return None
 
 
 class CampaignEventStatus(models.TextChoices):

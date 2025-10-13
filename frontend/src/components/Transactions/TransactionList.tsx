@@ -32,10 +32,12 @@ import {
   Business,
   Token,
   SwapHoriz,
+  OpenInNew,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../../services/api';
+import { getTransactionUrl, truncateAddress } from '../../utils/blockchain';
 
 const TransactionsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -89,9 +91,6 @@ const TransactionsPage: React.FC = () => {
     });
   };
 
-  const truncateAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
 
   if (error) {
     return (
@@ -304,9 +303,22 @@ const TransactionsPage: React.FC = () => {
                       onClick={() => navigate(`/transactions/${transaction.id}`)}
                     >
                       <TableCell>
-                        <Typography variant="body2" fontFamily="monospace">
-                          {truncateAddress(transaction.transaction_hash)}
-                        </Typography>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Typography variant="body2" fontFamily="monospace">
+                            {truncateAddress(transaction.transaction_hash)}
+                          </Typography>
+                          <Button
+                            size="small"
+                            startIcon={<OpenInNew />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(getTransactionUrl(transaction.transaction_hash), '_blank');
+                            }}
+                            sx={{ minWidth: 'auto', p: 0.5 }}
+                          >
+                            View
+                          </Button>
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Box display="flex" alignItems="center">
