@@ -27,7 +27,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: 'http://127.0.0.1:8000/api/api',
+      baseURL: 'http://127.0.0.1:8000/api',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -91,7 +91,7 @@ class ApiService {
     }
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/api/users/login/', {
+      const response = await axios.post('http://127.0.0.1:8000/api/users/login/', {
         refresh: refreshToken,
       });
       

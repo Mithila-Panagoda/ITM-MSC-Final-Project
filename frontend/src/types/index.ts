@@ -46,8 +46,9 @@ export interface Charity {
   description: string;
   website?: string;
   contact_email: string;
-  contract_address?: string;
-  deployment_hash?: string;
+  on_chain_id?: number;
+  transaction_hash?: string;
+  charity_explorer_url?: string;
   created_at: string;
   updated_at: string;
   campaigns_count: number;
@@ -64,7 +65,6 @@ export enum CampaignStatus {
 
 export interface Campaign {
   id: string;
-  contract_address: string;
   charity: Charity;
   charity_id: string;
   title: string;
@@ -74,12 +74,18 @@ export interface Campaign {
   start_date: string;
   end_date: string;
   status: CampaignStatus;
-  deployment_hash?: string;
+  on_chain_id?: number;
+  transaction_hash?: string;
+  campaign_explorer_url?: string;
   created_at: string;
   updated_at: string;
   donations_count: number;
   progress_percentage: number;
   recent_donations?: Donation[];
+  total_allocated?: number;
+  remaining_funds?: number;
+  utilization_percentage?: number;
+  events_count?: number;
 }
 
 export interface CampaignList {
@@ -95,6 +101,9 @@ export interface CampaignList {
   donations_count: number;
   progress_percentage: number;
   created_at: string;
+  on_chain_id?: number;
+  transaction_hash?: string;
+  campaign_explorer_url?: string;
 }
 
 // Donation Types
@@ -112,6 +121,8 @@ export interface Donation {
   token_details?: Token;
   token_quantity?: number;
   status: 'PENDING' | 'COMPLETED' | 'FAILED';
+  transaction_hash?: string;
+  donation_explorer_url?: string;
   donation_timestamp?: string;
   created_at: string;
 }

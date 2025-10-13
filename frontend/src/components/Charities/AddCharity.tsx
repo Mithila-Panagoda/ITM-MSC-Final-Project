@@ -26,8 +26,6 @@ interface CharityFormData {
   description: string;
   website: string;
   contact_email: string;
-  contract_address: string;
-  deployment_hash: string;
 }
 
 const AddCharity: React.FC = () => {
@@ -45,8 +43,6 @@ const AddCharity: React.FC = () => {
       description: '',
       website: '',
       contact_email: '',
-      contract_address: '',
-      deployment_hash: '',
     },
   });
 
@@ -72,8 +68,6 @@ const AddCharity: React.FC = () => {
 
     // Only include optional fields if they have values
     if (data.website) charityData.website = data.website;
-    if (data.contract_address) charityData.contract_address = data.contract_address;
-    if (data.deployment_hash) charityData.deployment_hash = data.deployment_hash;
 
     createCharityMutation.mutate(charityData);
   };
@@ -205,40 +199,6 @@ const AddCharity: React.FC = () => {
                   </Box>
                 </Box>
 
-                {/* Blockchain Fields Row */}
-                <Box display="flex" flexWrap="wrap" gap={3}>
-                  <Box flex="1" minWidth="300px">
-                    <Controller
-                      name="contract_address"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Blockchain Contract Address (Optional)"
-                          placeholder="0x..."
-                          helperText="Optional: Smart contract address for blockchain integration"
-                        />
-                      )}
-                    />
-                  </Box>
-
-                  <Box flex="1" minWidth="300px">
-                    <Controller
-                      name="deployment_hash"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Deployment Hash (Optional)"
-                          placeholder="Deployment transaction hash"
-                          helperText="Optional: Blockchain deployment transaction hash"
-                        />
-                      )}
-                    />
-                  </Box>
-                </Box>
 
                 {/* Submit Buttons */}
                 <Box>

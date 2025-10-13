@@ -22,12 +22,14 @@ import {
   Language,
   Email,
   Add,
+  OpenInNew,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import apiService from '../../services/api';
+import { getTransactionUrl } from '../../utils/blockchain';
 
 const CharitiesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -168,13 +170,27 @@ const CharitiesPage: React.FC = () => {
                       </Box>
                     </Box>
 
-                    {charity.contract_address && (
-                      <Chip
-                        label="Blockchain Enabled"
-                        color="success"
-                        size="small"
-                        sx={{ mb: 2 }}
-                      />
+                    {charity.on_chain_id && (
+                      <Box display="flex" alignItems="center" gap={1} mb={2}>
+                        <Chip
+                          label="Blockchain Enabled"
+                          color="success"
+                          size="small"
+                        />
+                        {charity.transaction_hash && (
+                          <Button
+                            size="small"
+                            startIcon={<OpenInNew />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(getTransactionUrl(charity.transaction_hash!), '_blank');
+                            }}
+                            sx={{ minWidth: 'auto', p: 0.5 }}
+                          >
+                            View on Sepolia
+                          </Button>
+                        )}
+                      </Box>
                     )}
 
                     <Box display="flex" gap={1}>

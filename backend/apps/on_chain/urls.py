@@ -8,7 +8,7 @@ router.register(r"tokens", TokenViewSet, basename="token")
 router.register(r"transactions", OnChainTransactionViewSet, basename="transaction")
 
 urlpatterns = [
-    path("api/", include(router.urls)),
+    path("", include(router.urls)),
 ]
 
 # Additional custom URL patterns can be added here if needed

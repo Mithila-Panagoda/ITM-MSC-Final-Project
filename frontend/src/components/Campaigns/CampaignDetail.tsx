@@ -36,6 +36,7 @@ import {
   Receipt,
   Add,
   Timeline,
+  OpenInNew,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -44,6 +45,7 @@ import apiService from '../../services/api';
 import { Campaign as CampaignType, DonationCreate, CampaignStatus, UserRole } from '../../types';
 import CampaignEventsList from './CampaignEventsList';
 import CreateEventDialog from './CreateEventDialog';
+import { getTransactionUrl } from '../../utils/blockchain';
 
 const CampaignDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -274,6 +276,16 @@ const CampaignDetail: React.FC = () => {
                       color={getStatusColor(stats?.status || 'unknown') as any}
                       sx={{ ml: 2 }}
                     />
+                    {campaign.on_chain_id && campaign.transaction_hash && (
+                      <Button
+                        size="small"
+                        startIcon={<OpenInNew />}
+                        onClick={() => window.open(getTransactionUrl(campaign.transaction_hash!), '_blank')}
+                        sx={{ ml: 2, minWidth: 'auto' }}
+                      >
+                        View on Sepolia
+                      </Button>
+                    )}
                   </Box>
                 </Box>
                 <Button

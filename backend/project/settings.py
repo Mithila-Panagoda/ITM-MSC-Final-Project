@@ -227,6 +227,13 @@ EMAIL_HOST_PASSWORD = os.getenv("DJANGO_EMAIL_HOST_PASSWORD")
 # FE
 WEBAPP_URL = os.getenv("WEBAPP_URL", "http://localhost:3000")
 
+# Blockchain Configuration
+BLOCKCHAIN_RPC_URL = os.getenv("BLOCKCHAIN_RPC_URL", "")
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "")
+ADMIN_WALLET_ADDRESS = os.getenv("ADMIN_WALLET_ADDRESS", "")
+ADMIN_WALLET_PRIVATE_KEY = os.getenv("ADMIN_WALLET_PRIVATE_KEY", "")
+BLOCKCHAIN_EXPLORER_BASE_URL = "https://sepolia.etherscan.io"
+
 # import sys
 # LOGGING = {
 #     'version': 1,

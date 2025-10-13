@@ -72,3 +72,10 @@ class OnChainCampaignEvent(models.Model):
     def amount(self):
         """Access amount from the related CampaignEvent"""
         return self.campaign_event.amount
+
+    @property
+    def event_explorer_url(self):
+        """Generate Sepolia Etherscan URL for fund allocation transaction"""
+        if self.transaction_hash:
+            return f"https://sepolia.etherscan.io/tx/{self.transaction_hash}"
+        return None

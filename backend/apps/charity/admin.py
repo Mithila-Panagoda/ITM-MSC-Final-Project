@@ -12,17 +12,19 @@ class CharityAdmin(admin.ModelAdmin):
         "contact_email",
         "campaigns_count",
         "total_raised",
-        "contract_address_short",
+        "on_chain_id",
         "created_at",
     ]
-    list_filter = ["created_at", "updated_at"]
-    search_fields = ["name", "description", "contact_email", "contract_address"]
+    list_filter = ["created_at", "updated_at", "on_chain_id"]
+    search_fields = ["name", "description", "contact_email", "on_chain_id"]
     readonly_fields = [
         "id",
         "created_at",
         "updated_at",
         "campaigns_count",
         "total_raised",
+        "on_chain_id",
+        "transaction_hash",
     ]
     fieldsets = (
         (
@@ -32,7 +34,7 @@ class CharityAdmin(admin.ModelAdmin):
         (
             "Blockchain Details",
             {
-                "fields": ("contract_address", "deployment_hash"),
+                "fields": ("on_chain_id", "transaction_hash"),
                 "classes": ("collapse",),
             },
         ),
@@ -61,12 +63,12 @@ class CharityAdmin(admin.ModelAdmin):
 
     total_raised.short_description = "Total Raised"
 
-    def contract_address_short(self, obj):
-        if obj.contract_address:
-            return f"{obj.contract_address[:10]}...{obj.contract_address[-8:]}"
+    def on_chain_id_display(self, obj):
+        if obj.on_chain_id:
+            return f"#{obj.on_chain_id}"
         return "-"
 
-    contract_address_short.short_description = "Contract Address"
+    on_chain_id_display.short_description = "On-Chain ID"
 
 
 @admin.register(Campaign)
@@ -79,11 +81,12 @@ class CampaignAdmin(admin.ModelAdmin):
         "progress_bar",
         "status",
         "donations_count",
+        "on_chain_id",
         "start_date",
         "end_date",
     ]
-    list_filter = ["charity", "start_date", "end_date", "created_at"]
-    search_fields = ["title", "description", "charity__name", "contract_address"]
+    list_filter = ["charity", "start_date", "end_date", "created_at", "on_chain_id"]
+    search_fields = ["title", "description", "charity__name", "on_chain_id"]
     readonly_fields = [
         "id",
         "created_at",
@@ -91,6 +94,8 @@ class CampaignAdmin(admin.ModelAdmin):
         "progress_percentage",
         "donations_count",
         "status",
+        "on_chain_id",
+        "transaction_hash",
     ]
     autocomplete_fields = ["charity"]
     date_hierarchy = "start_date"
@@ -105,7 +110,7 @@ class CampaignAdmin(admin.ModelAdmin):
         (
             "Blockchain Details",
             {
-                "fields": ("contract_address", "deployment_hash"),
+                "fields": ("on_chain_id", "transaction_hash"),
                 "classes": ("collapse",),
             },
         ),
@@ -184,6 +189,7 @@ class DonationAdmin(admin.ModelAdmin):
         "token_link",
         "token_quantity",
         "status_badge",
+        "transaction_hash_short",
         "donation_timestamp",
     ]
     list_filter = [
@@ -199,14 +205,19 @@ class DonationAdmin(admin.ModelAdmin):
         "campaign__title",
         "campaign__charity__name",
         "token__name",
+        "transaction_hash",
     ]
-    readonly_fields = ["id", "created_at", "donation_timestamp"]
+    readonly_fields = ["id", "created_at", "donation_timestamp", "transaction_hash"]
     autocomplete_fields = ["user", "campaign", "token"]
     date_hierarchy = "donation_timestamp"
 
     fieldsets = (
         ("Donation Details", {"fields": ("user", "campaign", "status")}),
         ("Amount Information", {"fields": ("amount", "token", "token_quantity")}),
+        (
+            "Blockchain Details",
+            {"fields": ("transaction_hash",), "classes": ("collapse",)},
+        ),
         (
             "Timestamps",
             {"fields": ("donation_timestamp", "created_at"), "classes": ("collapse",)},
@@ -247,6 +258,13 @@ class DonationAdmin(admin.ModelAdmin):
         )
 
     status_badge.short_description = "Status"
+
+    def transaction_hash_short(self, obj):
+        if obj.transaction_hash:
+            return f"{obj.transaction_hash[:10]}...{obj.transaction_hash[-8:]}"
+        return "-"
+
+    transaction_hash_short.short_description = "Transaction Hash"
 
 
 @admin.register(CampaignEvent)

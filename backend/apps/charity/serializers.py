@@ -11,6 +11,9 @@ class CharitySerializer(serializers.ModelSerializer):
 
     campaigns_count = serializers.SerializerMethodField()
     total_raised = serializers.SerializerMethodField()
+    on_chain_id = serializers.IntegerField(read_only=True)
+    transaction_hash = serializers.CharField(read_only=True)
+    charity_explorer_url = serializers.ReadOnlyField()
 
     class Meta:
         model = Charity
@@ -20,8 +23,9 @@ class CharitySerializer(serializers.ModelSerializer):
             "description",
             "website",
             "contact_email",
-            "contract_address",
-            "deployment_hash",
+            "on_chain_id",
+            "transaction_hash",
+            "charity_explorer_url",
             "created_at",
             "updated_at",
             "campaigns_count",
@@ -29,6 +33,9 @@ class CharitySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "on_chain_id",
+            "transaction_hash",
+            "charity_explorer_url",
             "created_at",
             "updated_at",
             "campaigns_count",
@@ -43,6 +50,7 @@ class CharitySerializer(serializers.ModelSerializer):
         """Get total amount raised across all campaigns"""
         total = sum([campaign.raised_amount for campaign in obj.campaigns.all()])
         return float(total)
+    
 
 
 class CampaignListSerializer(serializers.ModelSerializer):
@@ -92,12 +100,14 @@ class CampaignSerializer(serializers.ModelSerializer):
     remaining_funds = serializers.SerializerMethodField()
     utilization_percentage = serializers.SerializerMethodField()
     events_count = serializers.SerializerMethodField()
+    on_chain_id = serializers.IntegerField(read_only=True)
+    transaction_hash = serializers.CharField(read_only=True)
+    campaign_explorer_url = serializers.ReadOnlyField()
 
     class Meta:
         model = Campaign
         fields = [
             "id",
-            "contract_address",
             "charity",
             "charity_id",
             "title",
@@ -107,7 +117,9 @@ class CampaignSerializer(serializers.ModelSerializer):
             "start_date",
             "end_date",
             "status",
-            "deployment_hash",
+            "on_chain_id",
+            "transaction_hash",
+            "campaign_explorer_url",
             "created_at",
             "updated_at",
             "donations_count",
@@ -118,7 +130,7 @@ class CampaignSerializer(serializers.ModelSerializer):
             "utilization_percentage",
             "events_count",
         ]
-        read_only_fields = ["id", "raised_amount", "status", "created_at", "updated_at"]
+        read_only_fields = ["id", "raised_amount", "status", "on_chain_id", "transaction_hash", "campaign_explorer_url", "created_at", "updated_at"]
 
     def get_donations_count(self, obj):
         """Get total number of completed donations"""
@@ -152,6 +164,7 @@ class CampaignSerializer(serializers.ModelSerializer):
     def get_events_count(self, obj):
         """Get total number of events for this campaign"""
         return obj.events.count()
+    
 
     def validate(self, data):
         """Validate campaign data"""
@@ -178,6 +191,8 @@ class DonationSerializer(serializers.ModelSerializer):
     campaign_title = serializers.CharField(source="campaign.title", read_only=True)
     charity_name = serializers.CharField(source="campaign.charity.name", read_only=True)
     token_details = TokenSerializer(source="token", read_only=True)
+    transaction_hash = serializers.CharField(read_only=True)
+    donation_explorer_url = serializers.ReadOnlyField()
 
     class Meta:
         model = Donation
@@ -195,10 +210,12 @@ class DonationSerializer(serializers.ModelSerializer):
             "token_details",
             "token_quantity",
             "status",
+            "transaction_hash",
+            "donation_explorer_url",
             "donation_timestamp",
             "created_at",
         ]
-        read_only_fields = ["id", "donation_timestamp", "created_at"]
+        read_only_fields = ["id", "transaction_hash", "donation_explorer_url", "donation_timestamp", "created_at"]
 
     def validate(self, data):
         """Validate donation data"""
@@ -217,6 +234,7 @@ class DonationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Token quantity must be greater than 0")
 
         return data
+    
 
 
 class DonationCreateSerializer(serializers.ModelSerializer):

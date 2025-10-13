@@ -10,7 +10,7 @@ router.register(r"donations", DonationViewSet, basename="donation")
 router.register(r"campaign-events", CampaignEventViewSet, basename="campaign-event")
 
 urlpatterns = [
-    path("api/", include(router.urls)),
+    path("", include(router.urls)),
 ]
 
 # Additional custom URL patterns can be added here if needed

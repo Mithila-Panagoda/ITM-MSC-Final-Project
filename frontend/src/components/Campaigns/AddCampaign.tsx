@@ -34,10 +34,8 @@ interface CampaignFormData {
   description: string;
   goal_amount: number;
   charity_id: string;
-  contract_address: string;
   start_date: dayjs.Dayjs | null;
   end_date: dayjs.Dayjs | null;
-  deployment_hash: string;
 }
 
 const AddCampaign: React.FC = () => {
@@ -61,10 +59,8 @@ const AddCampaign: React.FC = () => {
       description: '',
       goal_amount: 0,
       charity_id: '',
-      contract_address: '',
       start_date: dayjs(),
       end_date: dayjs().add(30, 'day'),
-      deployment_hash: '',
     },
   });
 
@@ -97,13 +93,9 @@ const AddCampaign: React.FC = () => {
       description: data.description,
       goal_amount: data.goal_amount,
       charity_id: data.charity_id,
-      contract_address: data.contract_address,
       start_date: data.start_date.toISOString(),
       end_date: data.end_date.toISOString(),
     };
-
-    // Only include optional fields if they have values
-    if (data.deployment_hash) campaignData.deployment_hash = data.deployment_hash;
 
     createCampaignMutation.mutate(campaignData);
   };
@@ -295,42 +287,6 @@ const AddCampaign: React.FC = () => {
                     </Box>
                   </Box>
 
-                  {/* Contract Address and Deployment Hash Row */}
-                  <Box display="flex" flexWrap="wrap" gap={3}>
-                    <Box flex="1" minWidth="300px">
-                      <Controller
-                        name="contract_address"
-                        control={control}
-                        rules={{ required: 'Contract address is required' }}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            fullWidth
-                            label="Blockchain Contract Address"
-                            error={!!errors.contract_address}
-                            helperText={errors.contract_address?.message}
-                            placeholder="0x..."
-                          />
-                        )}
-                      />
-                    </Box>
-
-                    <Box flex="1" minWidth="300px">
-                      <Controller
-                        name="deployment_hash"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            fullWidth
-                            label="Deployment Hash (Optional)"
-                            placeholder="Deployment transaction hash"
-                            helperText="Optional: Blockchain deployment transaction hash"
-                          />
-                        )}
-                      />
-                    </Box>
-                  </Box>
 
                   {/* Submit Buttons */}
                   <Box>
