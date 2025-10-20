@@ -216,21 +216,22 @@ class BlockchainService:
             logger.error(f"Failed to create campaign on-chain: {str(e)}")
             raise BlockchainServiceError(f"Campaign creation failed: {str(e)}")
     
-    def donate_native_on_chain(self, campaign_on_chain_id: int, amount_wei: int) -> str:
+    def donate_native_on_chain(self, campaign_on_chain_id: int, amount_wei: int, actual_amount_usd: int) -> str:
         """
         Make a native ETH donation on the blockchain
         
         Args:
             campaign_on_chain_id: On-chain campaign ID
-            amount_wei: Donation amount in wei
+            amount_wei: Donation amount in wei (fixed small amount like 0.001 ETH)
+            actual_amount_usd: Actual dollar amount donated (in cents)
             
         Returns:
             Transaction hash
         """
         self._check_configured()
         try:
-            # Call donateNative function (payable)
-            function_call = self.contract.functions.donateNative(campaign_on_chain_id)
+            # Call donateNative function (payable) with actual USD amount
+            function_call = self.contract.functions.donateNative(campaign_on_chain_id, actual_amount_usd)
             
             tx_hash = self._send_transaction(function_call, value=amount_wei)
             
@@ -242,7 +243,7 @@ class BlockchainService:
             raise BlockchainServiceError(f"Donation failed: {str(e)}")
     
     def donate_erc20_on_chain(self, campaign_on_chain_id: int, token_address: str, 
-                             amount: int, min_amount: int) -> str:
+                             amount: int, min_amount: int, actual_amount_usd: int) -> str:
         """
         Make an ERC20 token donation on the blockchain
         
@@ -251,6 +252,7 @@ class BlockchainService:
             token_address: ERC20 token contract address
             amount: Donation amount
             min_amount: Minimum amount expected
+            actual_amount_usd: Actual dollar amount donated (in cents)
             
         Returns:
             Transaction hash
@@ -264,7 +266,8 @@ class BlockchainService:
                 campaign_on_chain_id,
                 token_address,
                 amount,
-                min_amount
+                min_amount,
+                actual_amount_usd
             )
             
             tx_hash = self._send_transaction(function_call)
@@ -303,6 +306,39 @@ class BlockchainService:
         except Exception as e:
             logger.error(f"Failed to withdraw funds on-chain: {str(e)}")
             raise BlockchainServiceError(f"Fund withdrawal failed: {str(e)}")
+    
+    def create_campaign_event_on_chain(self, campaign_on_chain_id: int, amount_usd: int, 
+                                     title: str, description: str) -> str:
+        """
+        Create a campaign event on the blockchain
+        
+        Args:
+            campaign_on_chain_id: On-chain campaign ID
+            amount_usd: Amount allocated in USD (in cents)
+            title: Event title
+            description: Event description
+            
+        Returns:
+            Transaction hash
+        """
+        self._check_configured()
+        try:
+            # Call createCampaignEvent function
+            function_call = self.contract.functions.createCampaignEvent(
+                campaign_on_chain_id,
+                amount_usd,
+                title,
+                description
+            )
+            
+            tx_hash = self._send_transaction(function_call)
+            
+            logger.info(f"Campaign event created on-chain: TX={tx_hash}")
+            return tx_hash
+            
+        except Exception as e:
+            logger.error(f"Failed to create campaign event on-chain: {str(e)}")
+            raise BlockchainServiceError(f"Campaign event creation failed: {str(e)}")
     
     def _get_charity_id_from_tx(self, tx_hash: str) -> int:
         """Extract charity ID from transaction logs"""

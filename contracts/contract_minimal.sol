@@ -21,6 +21,7 @@ contract CharityContractMinimal is Ownable, ReentrancyGuard {
     uint256 public charityCount;
     uint256 public campaignCount;
     uint256 public donationCount;
+    uint256 public campaignEventCount;
 
     uint256 public withdrawalTimelock = 24 hours;
 
@@ -54,8 +55,19 @@ contract CharityContractMinimal is Ownable, ReentrancyGuard {
         uint256 campaignId;
         uint256 amountWei;
         uint256 erc20Amount;
+        uint256 actualAmountUSD; // Actual dollar amount donated
         uint256 timestamp;
         address erc20Token;
+    }
+
+    struct CampaignEvent {
+        uint256 id;
+        uint256 campaignId;
+        uint256 charityId;
+        uint256 amountUSD; // Amount allocated in USD
+        uint256 timestamp;
+        string title;
+        string description;
     }
 
     mapping(uint256 => Charity) public charities;
@@ -63,6 +75,7 @@ contract CharityContractMinimal is Ownable, ReentrancyGuard {
 
     mapping(uint256 => Campaign) public campaigns;
     mapping(uint256 => Donation) public donations;
+    mapping(uint256 => CampaignEvent) public campaignEvents;
 
     mapping(uint256 => uint256) public charityNativeBalance;
     mapping(uint256 => mapping(address => uint256)) public charityERC20Balance;
@@ -71,7 +84,8 @@ contract CharityContractMinimal is Ownable, ReentrancyGuard {
 
     event CharityRegistered(uint256 indexed charityId, address indexed wallet, string name);
     event CampaignCreated(uint256 indexed campaignId, uint256 indexed charityId, string title);
-    event DonationReceived(uint256 indexed donationId, address indexed donor, uint256 charityId, uint256 amountWei, address erc20Token, uint256 erc20Amount);
+    event DonationReceived(uint256 indexed donationId, address indexed donor, uint256 charityId, uint256 amountWei, address erc20Token, uint256 erc20Amount, uint256 actualAmountUSD);
+    event CampaignEventCreated(uint256 indexed eventId, uint256 indexed campaignId, uint256 indexed charityId, uint256 amountUSD, string title);
     event FundsWithdrawn(uint256 indexed charityId, address indexed to, uint256 amountWei);
     event ERC20Withdrawn(uint256 indexed charityId, address indexed token, uint256 amount);
 
@@ -149,8 +163,9 @@ contract CharityContractMinimal is Ownable, ReentrancyGuard {
     }
 
     // --- Native donations ---
-    function donateNative(uint256 campaignId) external payable nonReentrant campaignExists(campaignId) {
-        require(msg.value > 0, "Donation > 0");
+    function donateNative(uint256 campaignId, uint256 actualAmountUSD) external payable nonReentrant campaignExists(campaignId) {
+        require(msg.value > 0, "Donation amount must be greater than 0");
+        require(actualAmountUSD > 0, "USD amount > 0");
         Campaign storage camp = campaigns[campaignId];
         require(camp.status == CampaignStatus.Active, "Not active");
 
@@ -165,21 +180,23 @@ contract CharityContractMinimal is Ownable, ReentrancyGuard {
             amountWei: msg.value,
             erc20Token: address(0),
             erc20Amount: 0,
+            actualAmountUSD: actualAmountUSD,
             timestamp: block.timestamp
         });
 
         charityNativeBalance[charityId] += msg.value;
         charityNextWithdrawTime[charityId] = block.timestamp + withdrawalTimelock;
 
-        emit DonationReceived(donationCount, msg.sender, charityId, msg.value, address(0), 0);
+        emit DonationReceived(donationCount, msg.sender, charityId, msg.value, address(0), 0, actualAmountUSD);
     }
 
     // --- ERC20 donations ---
-    function donateERC20(uint256 campaignId, address tokenAddress, uint256 amount, uint256 minAmount) external nonReentrant campaignExists(campaignId) {
+    function donateERC20(uint256 campaignId, address tokenAddress, uint256 amount, uint256 minAmount, uint256 actualAmountUSD) external nonReentrant campaignExists(campaignId) {
         require(tokenAddress != address(0), "Invalid token");
         require(amount > 0, "Amount > 0");
         require(acceptedERC20[tokenAddress], "Not accepted");
         require(amount >= minAmount, "Too low");
+        require(actualAmountUSD > 0, "USD amount > 0");
 
         Campaign storage camp = campaigns[campaignId];
         require(camp.status == CampaignStatus.Active, "Not active");
@@ -198,10 +215,34 @@ contract CharityContractMinimal is Ownable, ReentrancyGuard {
             amountWei: 0,
             erc20Token: tokenAddress,
             erc20Amount: amount,
+            actualAmountUSD: actualAmountUSD,
             timestamp: block.timestamp
         });
 
-        emit DonationReceived(donationCount, msg.sender, charityId, 0, tokenAddress, amount);
+        emit DonationReceived(donationCount, msg.sender, charityId, 0, tokenAddress, amount, actualAmountUSD);
+    }
+
+    // --- Campaign Events ---
+    function createCampaignEvent(uint256 campaignId, uint256 amountUSD, string memory title, string memory description) external nonReentrant campaignExists(campaignId) {
+        Campaign storage camp = campaigns[campaignId];
+        require(camp.status == CampaignStatus.Active, "Campaign not active");
+        require(amountUSD > 0, "Amount > 0");
+        require(bytes(title).length > 0, "Title required");
+        
+        uint256 charityId = camp.charityId;
+        
+        campaignEventCount++;
+        campaignEvents[campaignEventCount] = CampaignEvent({
+            id: campaignEventCount,
+            campaignId: campaignId,
+            charityId: charityId,
+            amountUSD: amountUSD,
+            timestamp: block.timestamp,
+            title: title,
+            description: description
+        });
+
+        emit CampaignEventCreated(campaignEventCount, campaignId, charityId, amountUSD, title);
     }
 
     // --- Withdrawals ---

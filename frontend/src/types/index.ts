@@ -225,6 +225,8 @@ export interface CampaignEvent {
   created_by_name: string;
   created_by_email: string;
   created_at: string;
+  transaction_hash?: string;
+  event_explorer_url?: string;
   updated_at: string;
 }
 

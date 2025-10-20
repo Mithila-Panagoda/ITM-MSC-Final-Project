@@ -274,6 +274,7 @@ class CampaignEventAdmin(admin.ModelAdmin):
         "campaign_link",
         "amount",
         "status_badge",
+        "transaction_hash_short",
         "created_by_link",
         "event_date",
         "created_at",
@@ -293,7 +294,7 @@ class CampaignEventAdmin(admin.ModelAdmin):
         "created_by__name",
         "created_by__email",
     ]
-    readonly_fields = ["id", "created_at", "updated_at"]
+    readonly_fields = ["id", "transaction_hash", "created_at", "updated_at"]
     autocomplete_fields = ["campaign", "created_by"]
     date_hierarchy = "event_date"
     raw_id_fields = ["campaign", "created_by"]
@@ -303,6 +304,10 @@ class CampaignEventAdmin(admin.ModelAdmin):
         ("Financial Information", {"fields": ("amount",)}),
         ("Event Information", {"fields": ("event_date", "image", "status")}),
         ("Creator", {"fields": ("created_by",)}),
+        (
+            "Blockchain Details",
+            {"fields": ("transaction_hash",), "classes": ("collapse",)},
+        ),
         (
             "Timestamps",
             {"fields": ("id", "created_at", "updated_at"), "classes": ("collapse",)},
@@ -340,6 +345,16 @@ class CampaignEventAdmin(admin.ModelAdmin):
         )
 
     status_badge.short_description = "Status"
+
+    def transaction_hash_short(self, obj):
+        """Display shortened transaction hash with link to Sepolia Etherscan"""
+        if obj.transaction_hash:
+            short_hash = f"{obj.transaction_hash[:10]}...{obj.transaction_hash[-6:]}"
+            url = f"https://sepolia.etherscan.io/tx/{obj.transaction_hash}"
+            return format_html('<a href="{}" target="_blank">{}</a>', url, short_hash)
+        return "—"
+
+    transaction_hash_short.short_description = "Transaction Hash"
 
 
 # Inline admin configurations

@@ -15,6 +15,7 @@ import {
   Divider,
   Paper,
   CircularProgress,
+  Button,
 } from '@mui/material';
 import {
   AttachMoney,
@@ -24,11 +25,13 @@ import {
   Warning,
   CheckCircle,
   Cancel,
+  OpenInNew,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import apiService from '../../services/api';
 import { CampaignEvent, CampaignUtilization } from '../../types';
+import { getTransactionUrl } from '../../utils/blockchain';
 
 interface CampaignEventsListProps {
   campaignId: string;
@@ -296,6 +299,17 @@ const CampaignEventsList: React.FC<CampaignEventsListProps> = ({
                                 {event.created_by_name}
                               </Typography>
                             </Box>
+                            
+                            {event.transaction_hash && (
+                              <Button
+                                size="small"
+                                startIcon={<OpenInNew />}
+                                onClick={() => window.open(getTransactionUrl(event.transaction_hash!), '_blank')}
+                                sx={{ minWidth: 'auto', p: 0.5 }}
+                              >
+                                View on Sepolia
+                              </Button>
+                            )}
                           </Box>
                         </Box>
                       }
