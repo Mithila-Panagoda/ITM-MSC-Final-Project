@@ -92,9 +92,11 @@ class Campaign(models.Model):
     def update_status(self):
         """Update campaign status based on current time and goal achievement"""
         from django.utils import timezone
+        from decimal import Decimal
         now = timezone.now()
         
-        if self.raised_amount >= self.goal_amount:
+        # Use Decimal comparison for precise amount checking
+        if Decimal(str(self.raised_amount)) >= Decimal(str(self.goal_amount)):
             self.status = CampaignStatus.COMPLETED
         elif now < self.start_date:
             self.status = CampaignStatus.UPCOMING
@@ -179,6 +181,7 @@ class CampaignEvent(models.Model):
     status = models.CharField(
         max_length=10, choices=CampaignEventStatus.choices, default=CampaignEventStatus.PENDING
     )
+    transaction_hash = models.CharField(max_length=255, null=True, blank=True, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -189,6 +192,13 @@ class CampaignEvent(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.campaign.title}"
+
+    @property
+    def event_explorer_url(self):
+        """Generate Sepolia Etherscan URL for campaign event transaction"""
+        if self.transaction_hash:
+            return f"https://sepolia.etherscan.io/tx/{self.transaction_hash}"
+        return None
 
     def clean(self):
         """Validate campaign event data"""
@@ -203,7 +213,8 @@ class CampaignEvent(models.Model):
             raise ValidationError("Amount must be greater than zero.")
         
         # Check if total allocated amount doesn't exceed raised amount
-        if self.campaign_id:
+        # Skip this validation if we're just updating the status to COMPLETED
+        if self.campaign_id and self.status != CampaignEventStatus.COMPLETED:
             total_allocated = CampaignEvent.objects.filter(
                 campaign=self.campaign,
                 status__in=[CampaignEventStatus.PENDING, CampaignEventStatus.COMPLETED]

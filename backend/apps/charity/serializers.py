@@ -250,6 +250,8 @@ class DonationCreateSerializer(serializers.ModelSerializer):
         token_quantity = data.get("token_quantity")
         campaign = data.get("campaign")
 
+        # For USD donations, only amount should be provided
+        # For token donations, only token_quantity should be provided
         if not amount and not token_quantity:
             raise serializers.ValidationError(
                 "Either amount or token_quantity must be provided"
@@ -260,6 +262,12 @@ class DonationCreateSerializer(serializers.ModelSerializer):
 
         if token_quantity and token_quantity <= 0:
             raise serializers.ValidationError("Token quantity must be greater than 0")
+
+        # Ensure only one type of donation is provided
+        if amount and token_quantity:
+            raise serializers.ValidationError(
+                "Cannot provide both amount and token_quantity. Choose one donation type."
+            )
 
         # Check if campaign can accept donations
         if campaign and not campaign.can_accept_donations():
@@ -320,6 +328,8 @@ class CampaignEventListSerializer(serializers.ModelSerializer):
     
     created_by_name = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
+    transaction_hash = serializers.CharField(read_only=True)
+    event_explorer_url = serializers.ReadOnlyField()
 
     class Meta:
         model = CampaignEvent
@@ -332,6 +342,8 @@ class CampaignEventListSerializer(serializers.ModelSerializer):
             "event_date",
             "status",
             "created_by_name",
+            "transaction_hash",
+            "event_explorer_url",
             "created_at",
         ]
 
@@ -356,6 +368,8 @@ class CampaignEventSerializer(serializers.ModelSerializer):
     campaign_title = serializers.CharField(source="campaign.title", read_only=True)
     charity_name = serializers.CharField(source="campaign.charity.name", read_only=True)
     image_url = serializers.SerializerMethodField()
+    transaction_hash = serializers.CharField(read_only=True)
+    event_explorer_url = serializers.ReadOnlyField()
 
     class Meta:
         model = CampaignEvent
@@ -374,10 +388,12 @@ class CampaignEventSerializer(serializers.ModelSerializer):
             "created_by",
             "created_by_name",
             "created_by_email",
+            "transaction_hash",
+            "event_explorer_url",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "transaction_hash", "event_explorer_url", "created_at", "updated_at"]
 
     def get_created_by_name(self, obj):
         """Get the name of the user who created the event"""

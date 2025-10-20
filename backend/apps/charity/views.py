@@ -274,9 +274,12 @@ class CampaignViewSet(viewsets.ModelViewSet):
                             if not campaign.on_chain_id:
                                 raise ValueError("Campaign must be registered on blockchain before accepting donations")
                             
-                            # Convert amount to wei
+                            # Calculate proportional ETH amount: $100 = 0.001 ETH
                             from web3 import Web3
-                            amount_wei = Web3.to_wei(float(donation.amount), 'ether')
+                            donation_amount_usd = float(donation.amount)
+                            eth_amount = (donation_amount_usd / 100.0) * 0.001  # Scale: $100 = 0.001 ETH
+                            amount_wei = Web3.to_wei(eth_amount, 'ether')
+                            actual_amount_usd_cents = int(donation_amount_usd * 100)  # Convert to cents
                             
                             # Use user's wallet address if available, otherwise use admin wallet
                             donor_address = getattr(request.user, 'wallet_address', None)
@@ -286,12 +289,14 @@ class CampaignViewSet(viewsets.ModelViewSet):
                             
                             tx_hash = blockchain_service.donate_native_on_chain(
                                 campaign_on_chain_id=campaign.on_chain_id,
-                                amount_wei=amount_wei
+                                amount_wei=amount_wei,
+                                actual_amount_usd=actual_amount_usd_cents
                             )
                             
-                            # Update donation with transaction hash
+                            # Update donation with transaction hash and token quantity
                             donation.transaction_hash = tx_hash
-                            donation.save(update_fields=['transaction_hash'])
+                            donation.token_quantity = eth_amount  # Proportional ETH amount sent to blockchain
+                            donation.save(update_fields=['transaction_hash', 'token_quantity'])
                             
                             logger.info(f"Donation {donation.id} recorded on blockchain with TX {tx_hash}")
                             
@@ -301,9 +306,8 @@ class CampaignViewSet(viewsets.ModelViewSet):
                     else:
                         logger.info(f"Donation {donation.id} recorded without blockchain integration (blockchain not configured)")
                     
-                    # Update campaign raised amount (always do this regardless of blockchain)
-                    campaign.raised_amount += donation.amount
-                    campaign.save(update_fields=['raised_amount'])
+                    # Campaign raised amount will be updated automatically by Django signals
+                    # No need to manually update it here
                     
                     response_serializer = DonationSerializer(
                         donation, context={"request": request}
@@ -404,37 +408,9 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 with transaction.atomic():
                     event = serializer.save()
                     
-                    # Withdraw funds on blockchain (only if blockchain is configured)
-                    from apps.on_chain.blockchain_service import blockchain_service
-                    if blockchain_service.is_configured:
-                        try:
-                            if not campaign.charity.on_chain_id:
-                                raise ValueError("Charity must be registered on blockchain before fund allocation")
-                            
-                            # Convert amount to wei
-                            from web3 import Web3
-                            amount_wei = Web3.to_wei(float(event.amount), 'ether')
-                            
-                            tx_hash = blockchain_service.withdraw_funds_on_chain(
-                                charity_on_chain_id=campaign.charity.on_chain_id,
-                                amount_wei=amount_wei
-                            )
-                            
-                            # Create on-chain event record
-                            from apps.on_chain.models import OnChainCampaignEvent
-                            on_chain_event = OnChainCampaignEvent.objects.create(
-                                campaign_event=event,
-                                transaction_hash=tx_hash,
-                                is_on_chain=True
-                            )
-                            
-                            logger.info(f"Fund allocation {event.id} recorded on blockchain with TX {tx_hash}")
-                            
-                        except BlockchainServiceError as e:
-                            logger.error(f"Failed to withdraw funds on blockchain: {str(e)}")
-                            # Don't rollback database - event exists but not on blockchain
-                    else:
-                        logger.info(f"Fund allocation {event.id} recorded without blockchain integration (blockchain not configured)")
+                    # Campaign event is created in PENDING status
+                    # Blockchain transaction will be triggered by signal when admin approves it
+                    logger.info(f"Campaign event {event.id} created in PENDING status")
                     
                     response_serializer = CampaignEventSerializer(
                         event, context={"request": request}

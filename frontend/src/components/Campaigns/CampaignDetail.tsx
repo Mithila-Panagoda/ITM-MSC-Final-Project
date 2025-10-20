@@ -422,13 +422,28 @@ const CampaignDetail: React.FC = () => {
                         </ListItemAvatar>
                         <ListItemText
                           primary={
-                            <Box display="flex" justifyContent="space-between">
+                            <Box display="flex" justifyContent="space-between" alignItems="center">
                               <Typography variant="body2" fontWeight="bold">
                                 {donation.user_email} 
                               </Typography>
-                              <Typography variant="body2" color="primary">
-                                {donation.amount ? formatCurrency(donation.amount) : `${donation.token_quantity} tokens`}
-                              </Typography>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                <Typography variant="body2" color="primary">
+                                  {donation.amount ? formatCurrency(donation.amount) : `${donation.token_quantity} tokens`}
+                                </Typography>
+                                {donation.transaction_hash && (
+                                  <Button
+                                    size="small"
+                                    startIcon={<OpenInNew />}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(getTransactionUrl(donation.transaction_hash!), '_blank');
+                                    }}
+                                    sx={{ minWidth: 'auto', p: 0.5 }}
+                                  >
+                                    Sepolia
+                                  </Button>
+                                )}
+                              </Box>
                             </Box>
                           }
                           secondary={
