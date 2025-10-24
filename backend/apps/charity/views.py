@@ -446,6 +446,200 @@ class CampaignViewSet(viewsets.ModelViewSet):
         serializer = CampaignUtilizationSerializer(data)
         return Response(serializer.data)
 
+    @action(detail=False, methods=["get"])
+    def all_transactions(self, request):
+        """Get all blockchain transactions from donations, campaign events, etc."""
+        from django.db.models import Q
+        from .models import Donation, CampaignEvent
+        from apps.on_chain.models import OnChainTransaction
+        
+        # Get query parameters
+        search = request.query_params.get('search', '')
+        token_filter = request.query_params.get('token', '')
+        charity_filter = request.query_params.get('charity', '')
+        address_filter = request.query_params.get('address', '')
+        ordering = request.query_params.get('ordering', '-created_at')
+        
+        # Build base querysets
+        charities = Charity.objects.filter(
+            transaction_hash__isnull=False
+        )
+        
+        campaigns = Campaign.objects.filter(
+            transaction_hash__isnull=False
+        ).select_related('charity')
+        
+        donations = Donation.objects.filter(
+            transaction_hash__isnull=False
+        ).select_related('campaign', 'campaign__charity', 'user')
+        
+        campaign_events = CampaignEvent.objects.filter(
+            transaction_hash__isnull=False
+        ).select_related('campaign', 'campaign__charity', 'created_by')
+        
+        on_chain_transactions = OnChainTransaction.objects.all().select_related('token', 'token__charity')
+        
+        # Apply filters
+        if search:
+            charities = charities.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search)
+            )
+            campaigns = campaigns.filter(
+                Q(title__icontains=search) |
+                Q(description__icontains=search) |
+                Q(charity__name__icontains=search)
+            )
+            donations = donations.filter(
+                Q(campaign__title__icontains=search) |
+                Q(campaign__charity__name__icontains=search) |
+                Q(user__email__icontains=search)
+            )
+            campaign_events = campaign_events.filter(
+                Q(title__icontains=search) |
+                Q(campaign__title__icontains=search) |
+                Q(campaign__charity__name__icontains=search)
+            )
+            on_chain_transactions = on_chain_transactions.filter(
+                Q(token__name__icontains=search) |
+                Q(token__charity__name__icontains=search)
+            )
+        
+        if charity_filter:
+            charities = charities.filter(id=charity_filter)
+            campaigns = campaigns.filter(charity_id=charity_filter)
+            donations = donations.filter(campaign__charity_id=charity_filter)
+            campaign_events = campaign_events.filter(campaign__charity_id=charity_filter)
+            on_chain_transactions = on_chain_transactions.filter(token__charity_id=charity_filter)
+        
+        if address_filter:
+            # Charities and campaigns don't have created_by field, so skip address filtering for them
+            donations = donations.filter(user__wallet_address__icontains=address_filter)
+            campaign_events = campaign_events.filter(created_by__wallet_address__icontains=address_filter)
+            on_chain_transactions = on_chain_transactions.filter(
+                Q(from_address__icontains=address_filter) |
+                Q(to_address__icontains=address_filter)
+            )
+        
+        # Convert to unified format
+        transactions = []
+        
+        # Add charity registrations
+        for charity in charities:
+            transactions.append({
+                'id': f"charity_{charity.id}",
+                'type': 'charity_registration',
+                'transaction_hash': charity.transaction_hash,
+                'amount': 0,
+                'token_quantity': 0,
+                'from_address': 'Admin',
+                'to_address': 'Blockchain',
+                'charity_name': charity.name,
+                'campaign_title': '',
+                'user_email': 'admin@system.com',  # Default admin email since no created_by field
+                'timestamp': charity.created_at,
+                'status': 'COMPLETED',
+                'explorer_url': charity.charity_explorer_url,
+            })
+        
+        # Add campaign creations
+        for campaign in campaigns:
+            transactions.append({
+                'id': f"campaign_{campaign.id}",
+                'type': 'campaign_creation',
+                'transaction_hash': campaign.transaction_hash,
+                'amount': float(campaign.goal_amount),
+                'token_quantity': 0,
+                'from_address': 'Admin',
+                'to_address': 'Blockchain',
+                'charity_name': campaign.charity.name,
+                'campaign_title': campaign.title,
+                'user_email': 'admin@system.com',  # Default admin email since no created_by field
+                'timestamp': campaign.created_at,
+                'status': 'COMPLETED',
+                'explorer_url': campaign.campaign_explorer_url,
+            })
+        
+        # Add donations
+        for donation in donations:
+            transactions.append({
+                'id': f"donation_{donation.id}",
+                'type': 'donation',
+                'transaction_hash': donation.transaction_hash,
+                'amount': float(donation.amount) if donation.amount else 0,
+                'token_quantity': float(donation.token_quantity) if donation.token_quantity else 0,
+                'from_address': getattr(donation.user, 'wallet_address', ''),
+                'to_address': 'Campaign',
+                'charity_name': donation.campaign.charity.name,
+                'campaign_title': donation.campaign.title,
+                'user_email': donation.user.email if donation.user else '',
+                'timestamp': donation.donation_timestamp or donation.created_at,
+                'status': donation.status,
+                'explorer_url': donation.donation_explorer_url,
+            })
+        
+        # Add campaign events
+        for event in campaign_events:
+            transactions.append({
+                'id': f"event_{event.id}",
+                'type': 'campaign_event',
+                'transaction_hash': event.transaction_hash,
+                'amount': float(event.amount),
+                'token_quantity': 0,
+                'from_address': 'Campaign',
+                'to_address': 'Event',
+                'charity_name': event.campaign.charity.name,
+                'campaign_title': event.campaign.title,
+                'user_email': event.created_by.email if event.created_by else '',
+                'timestamp': event.created_at,
+                'status': event.status,
+                'explorer_url': event.event_explorer_url,
+                'event_title': event.title,
+            })
+        
+        # Add on-chain transactions
+        for tx in on_chain_transactions:
+            transactions.append({
+                'id': f"onchain_{tx.id}",
+                'type': 'on_chain',
+                'transaction_hash': tx.transaction_hash,
+                'amount': float(tx.amount),
+                'token_quantity': float(tx.amount),
+                'from_address': tx.from_address,
+                'to_address': tx.to_address,
+                'charity_name': tx.token.charity.name,
+                'campaign_title': '',
+                'user_email': '',
+                'timestamp': tx.timestamp,
+                'status': 'COMPLETED',
+                'explorer_url': f"https://sepolia.etherscan.io/tx/{tx.transaction_hash}",
+                'token_name': tx.token.name,
+            })
+        
+        # Sort transactions
+        if ordering.startswith('-'):
+            field = ordering[1:]
+            reverse = True
+        else:
+            field = ordering
+            reverse = False
+        
+        transactions.sort(key=lambda x: x.get(field, ''), reverse=reverse)
+        
+        # Pagination
+        page_size = 20
+        start = (int(request.query_params.get('page', 1)) - 1) * page_size
+        end = start + page_size
+        
+        paginated_transactions = transactions[start:end]
+        
+        return Response({
+            'results': paginated_transactions,
+            'count': len(transactions),
+            'next': f"?page={int(request.query_params.get('page', 1)) + 1}" if end < len(transactions) else None,
+            'previous': f"?page={int(request.query_params.get('page', 1)) - 1}" if int(request.query_params.get('page', 1)) > 1 else None,
+        })
+
 
 class DonationViewSet(viewsets.ModelViewSet):
     """

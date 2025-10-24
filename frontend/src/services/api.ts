@@ -11,6 +11,7 @@ import {
   DonationCreate,
   Token,
   OnChainTransaction,
+  UnifiedTransaction,
   CharityStats,
   CampaignStats,
   DonationStats,
@@ -373,9 +374,9 @@ class ApiService {
     charity?: string;
     address?: string;
     page?: number;
-  }): Promise<PaginatedResponse<OnChainTransaction>> {
-    const response: AxiosResponse<PaginatedResponse<OnChainTransaction>> = await this.api.get(
-      '/transactions/',
+  }): Promise<PaginatedResponse<UnifiedTransaction>> {
+    const response: AxiosResponse<PaginatedResponse<any>> = await this.api.get(
+      '/campaigns/all_transactions/',
       { params }
     );
     return response.data;

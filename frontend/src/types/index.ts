@@ -155,6 +155,24 @@ export interface OnChainTransaction {
   timestamp: string;
 }
 
+export interface UnifiedTransaction {
+  id: string;
+  type: 'donation' | 'campaign_event' | 'charity_registration' | 'campaign_creation' | 'on_chain';
+  transaction_hash: string;
+  amount: number;
+  token_quantity: number;
+  from_address: string;
+  to_address: string;
+  charity_name: string;
+  campaign_title: string;
+  user_email: string;
+  timestamp: string;
+  status: string;
+  explorer_url?: string;
+  event_title?: string;
+  token_name?: string;
+}
+
 // Statistics Types
 export interface CharityStats {
   total_campaigns: number;
