@@ -8,7 +8,9 @@ A comprehensive blockchain-integrated charity platform built with Django REST AP
 
 Watch the complete application demonstration:
 
-<iframe width="800" height="450" src="https://www.youtube.com/embed/4PGy4zrkySk" title="Blockchain-Integrated Charity Platform Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"></iframe>
+[![Blockchain-Integrated Charity Platform Demo](https://img.youtube.com/vi/4PGy4zrkySk/maxresdefault.jpg)](https://youtu.be/4PGy4zrkySk)
+
+*Click the image above to watch the full demo on YouTube*
 
 ### Demo Highlights:
 - ✅ **Charity Registration** - On-chain charity creation with blockchain verification
