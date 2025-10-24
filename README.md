@@ -4,6 +4,21 @@
 
 A comprehensive blockchain-integrated charity platform built with Django REST API backend, React TypeScript frontend, and Solidity smart contracts on Sepolia testnet. The platform enables charity registration, campaign management, donation processing, and fund allocation with full blockchain transparency.
 
+## 🎬 Demo Video
+
+Watch the complete application demonstration:
+
+<iframe width="800" height="450" src="https://www.youtube.com/embed/4PGy4zrkySk" title="Blockchain-Integrated Charity Platform Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"></iframe>
+
+### Demo Highlights:
+- ✅ **Charity Registration** - On-chain charity creation with blockchain verification
+- ✅ **Campaign Management** - Complete campaign lifecycle with real-time updates
+- ✅ **Donation Processing** - Multi-currency donations with blockchain recording
+- ✅ **Fund Allocation** - Event creation and fund distribution with blockchain transactions
+- ✅ **Transaction Tracking** - Complete blockchain transaction history with Sepolia Etherscan links
+- ✅ **User Management** - Role-based authentication and permission system
+- ✅ **Admin Interface** - Django admin for campaign event approval and system management
+
 ## 🏗️ Architecture
 
 ```
