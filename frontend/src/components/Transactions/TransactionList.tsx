@@ -69,10 +69,28 @@ const TransactionsPage: React.FC = () => {
     queryFn: () => apiService.getCharities(),
   });
 
-  const { data: stats } = useQuery({
-    queryKey: ['transaction-stats'],
-    queryFn: () => apiService.getTransactionStats(),
-  });
+  // Calculate stats from transactions data
+  const stats = React.useMemo(() => {
+    if (!transactions?.results) return null;
+    
+    const totalTransactions = transactions.count || 0;
+    const totalVolume = transactions.results.reduce((sum, tx) => sum + tx.amount, 0);
+    const uniqueAddresses = new Set([
+      ...transactions.results.map(tx => tx.from_address).filter(Boolean),
+      ...transactions.results.map(tx => tx.to_address).filter(Boolean)
+    ]).size;
+    
+    // Count unique charities
+    const uniqueCharities = new Set(transactions.results.map(tx => tx.charity_name)).size;
+    
+    return {
+      total_transactions: totalTransactions,
+      total_volume: totalVolume,
+      unique_addresses: uniqueAddresses,
+      top_tokens_by_transactions: [], // Empty array for now
+      unique_charities: uniqueCharities
+    };
+  }, [transactions]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -137,7 +155,7 @@ const TransactionsPage: React.FC = () => {
                       Total Volume
                     </Typography>
                     <Typography variant="h4" component="div">
-                      {stats.total_volume.toLocaleString()}
+                      {formatCurrency(stats.total_volume)}
                     </Typography>
                   </Box>
                   <Avatar sx={{ bgcolor: 'success.main' }}>
@@ -172,14 +190,14 @@ const TransactionsPage: React.FC = () => {
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box>
                     <Typography color="text.secondary" gutterBottom variant="h6">
-                      Active Tokens
+                      Active Charities
                     </Typography>
                     <Typography variant="h4" component="div">
-                      {stats.top_tokens_by_transactions.length}
+                      {stats.unique_charities}
                     </Typography>
                   </Box>
                   <Avatar sx={{ bgcolor: 'secondary.main' }}>
-                    <Token />
+                    <Business />
                   </Avatar>
                 </Box>
               </CardContent>
@@ -285,13 +303,14 @@ const TransactionsPage: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell>Type</TableCell>
                     <TableCell>Hash</TableCell>
-                    <TableCell>Token</TableCell>
                     <TableCell>From</TableCell>
                     <TableCell>To</TableCell>
                     <TableCell>Amount</TableCell>
+                    <TableCell>Charity/Campaign</TableCell>
                     <TableCell>Timestamp</TableCell>
-                    <TableCell>Charity</TableCell>
+                    <TableCell>Status</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -300,8 +319,20 @@ const TransactionsPage: React.FC = () => {
                       key={transaction.id}
                       hover
                       sx={{ cursor: 'pointer' }}
-                      onClick={() => navigate(`/transactions/${transaction.id}`)}
                     >
+                      <TableCell>
+                        <Chip
+                          label={transaction.type.replace('_', ' ').toUpperCase()}
+                          color={
+                            transaction.type === 'donation' ? 'success' :
+                            transaction.type === 'campaign_event' ? 'info' :
+                            transaction.type === 'charity_registration' ? 'primary' :
+                            transaction.type === 'campaign_creation' ? 'secondary' :
+                            'default'
+                          }
+                          size="small"
+                        />
+                      </TableCell>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1}>
                           <Typography variant="body2" fontFamily="monospace">
@@ -321,44 +352,63 @@ const TransactionsPage: React.FC = () => {
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Box display="flex" alignItems="center">
-                          <Avatar sx={{ width: 24, height: 24, mr: 1 }}>
-                            <Token />
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight="bold">
-                              {transaction.token.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {transaction.token.token_id}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
                         <Typography variant="body2" fontFamily="monospace">
-                          {truncateAddress(transaction.from_address)}
+                          {transaction.from_address ? truncateAddress(transaction.from_address) : 'N/A'}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontFamily="monospace">
-                          {truncateAddress(transaction.to_address)}
+                          {transaction.to_address ? truncateAddress(transaction.to_address) : 'N/A'}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight="bold">
-                          {transaction.amount.toLocaleString()}
+                          {transaction.amount > 0 ? `$${transaction.amount.toLocaleString()}` : 'N/A'}
+                          {transaction.token_quantity > 0 && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              {transaction.token_quantity.toFixed(6)} ETH
+                            </Typography>
+                          )}
+                          {transaction.type === 'campaign_creation' && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Goal: ${transaction.amount.toLocaleString()}
+                            </Typography>
+                          )}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">
-                          {formatDateTime(transaction.timestamp)}
-                        </Typography>
+                        <Box>
+                          <Typography variant="body2" fontWeight="bold">
+                            {transaction.charity_name}
+                          </Typography>
+                          {transaction.campaign_title && (
+                            <Typography variant="caption" color="text.secondary">
+                              {transaction.campaign_title}
+                            </Typography>
+                          )}
+                          {transaction.event_title && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Event: {transaction.event_title}
+                            </Typography>
+                          )}
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {transaction.token.charity}
+                          {new Date(transaction.timestamp).toLocaleString()}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={transaction.status}
+                          color={
+                            transaction.status === 'COMPLETED' ? 'success' :
+                            transaction.status === 'PENDING' ? 'warning' :
+                            transaction.status === 'FAILED' ? 'error' :
+                            'default'
+                          }
+                          size="small"
+                        />
                       </TableCell>
                     </TableRow>
                   ))}
